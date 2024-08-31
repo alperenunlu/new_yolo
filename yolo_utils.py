@@ -1,6 +1,7 @@
 import torch
 
 import torch.nn.functional as F
+from torch.optim.lr_scheduler import LRScheduler
 from torchvision.ops import box_convert, box_iou
 
 from typing import Tuple, List
@@ -259,9 +260,21 @@ def yolo_resp_bbox(output, target, config=config):
 
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
-    avg_iou = ious.mean().item()
+    return best_bbox, ious
 
-    return best_bbox, avg_iou
+
+class YOLOV1Scheduler(LRScheduler):
+    def __init__(self, optimizer, steps, scales):
+        self.steps = steps.copy()
+        self.scales = scales.copy()
+        super().__init__(optimizer)
+
+    def get_lr(self):
+        if len(self.steps) > 0 and self.last_epoch > self.steps[0]:
+            self.steps.pop(0)
+            gamma = self.scales.pop(0)
+            return [group["lr"] * gamma for group in self.optimizer.param_groups]
+        return [group["lr"] for group in self.optimizer.param_groups]
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ class YOLOLoss(nn.Module):
         output_boxes = output[..., C:].contiguous().view(-1, S, S, B, 5)
         target_boxes = target[..., C:].contiguous().view(-1, S, S, 5)
 
-        best_bbox, avg_iou = yolo_resp_bbox(output_boxes[..., 1:], target_boxes[..., 1:], config)
+        best_bbox, ious = yolo_resp_bbox(output_boxes[..., 1:], target_boxes[..., 1:], config)
 
         # Use advanced indexing
         resp_boxes = output_boxes.gather(
@@ -107,6 +107,8 @@ class YOLOLoss(nn.Module):
 
         loss = box_loss + conf_loss + noobj_loss + class_loss
         loss = loss / BATCH_SIZE
+
+        avg_iou = ious[obj_mask].mean()
 
         return loss, avg_iou
 
