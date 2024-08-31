@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torchvision.ops import box_convert, box_iou
 
-from typing import Tuple
+from typing import Tuple, List
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 from torch import Tensor
 
@@ -123,7 +123,7 @@ def xyxy_to_yolo_target(boxes: BoundingBoxes, labels: Tensor, config=config) -> 
 
 def yolo_target_to_xyxy(
     target: Tensor, threshold=0.5, config=config
-) -> Tuple[BoundingBoxes, Tensor, Tensor]:
+) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
     """
     target: Tensor of shape (N, S, S, 5 + C) or (S, S, 5 + C)
 
@@ -135,9 +135,9 @@ def yolo_target_to_xyxy(
             w, h = width and height of the bbox relative to the image size
 
     Returns:
-        boxes: BoundingBoxes object with shape (N, 4) or (4)
-        labels: Tensor of shape (N,) or ()
-        confidences: Tensor of shape (N,) or ()
+        boxes: List of BoundingBoxes objects, one for each sample in the batch
+        labels: List of Tensors, one for each sample in the batch
+        confidences: List of Tensors, one for each sample in the batch
     """
 
     C = config.C
@@ -146,21 +146,43 @@ def yolo_target_to_xyxy(
     if target.dim() == 3:
         target = target.unsqueeze(0)
 
-    center_batch, center_row, center_col = torch.where(target[..., C] > threshold)
+    batch_size = target.size(0)
     bboxes = yolo_multi_bbox_to_xyxy(target[..., C + 1 :].unsqueeze(-2), config)
-    bboxes = bboxes[center_batch, center_row, center_col]
 
-    labels = torch.argmax(target[center_batch, center_row, center_col, :C], dim=-1) + 1
+    # Get indices of cells with confidence above threshold
+    center_batch, center_row, center_col = torch.where(target[..., C] > threshold)
 
-    bboxes = BoundingBoxes(
-        bboxes.ceil(),
-        format=BoundingBoxFormat.XYXY,
-        canvas_size=canvas_size,
+    # Create a tensor of batch indices
+    batch_indices = (
+        torch.arange(batch_size, device=target.device)
+        .unsqueeze(-1)
+        .expand(-1, center_batch.size(0))
     )
 
-    confidences = target[center_batch, center_row, center_col, C]
+    # Mask for valid detections
+    valid_mask = center_batch.unsqueeze(0) == batch_indices
 
-    return bboxes, labels, confidences
+    # Extract valid bboxes, labels, and confidences
+    valid_bboxes = bboxes[center_batch, center_row, center_col]
+    valid_labels = (
+        torch.argmax(target[center_batch, center_row, center_col, :C], dim=-1) + 1
+    )
+    valid_confidences = target[center_batch, center_row, center_col, C]
+
+    # Split the results by batch
+    boxes_list = [
+        BoundingBoxes(
+            valid_bboxes[mask].ceil(),
+            format=BoundingBoxFormat.XYXY,
+            canvas_size=canvas_size,
+        )
+        for mask in valid_mask
+    ]
+
+    labels_list = [valid_labels[mask] for mask in valid_mask]
+    confidences_list = [valid_confidences[mask] for mask in valid_mask]
+
+    return boxes_list, labels_list, confidences_list
 
 
 def yolo_output_to_xyxy(
@@ -195,7 +217,9 @@ def yolo_output_to_xyxy(
     ]
     output_best_boxes = torch.cat([classes, best_boxes], dim=-1)
 
-    bboxes, labels, confidences = yolo_target_to_xyxy(output_best_boxes, threshold, config)
+    bboxes, labels, confidences = yolo_target_to_xyxy(
+        output_best_boxes, threshold, config
+    )
 
     return bboxes, labels, confidences
 
@@ -237,7 +261,8 @@ def yolo_resp_bbox(output, target, config=config):
 
 
 if __name__ == "__main__":
-    def test_xyxy_to_yolo_target():    
+
+    def test_xyxy_to_yolo_target():
         coord1 = torch.randint(0, 224, (1, 2))
         coord2 = coord1 + torch.randint(0, 224, (1, 2))
         boxes = torch.cat([coord1, coord2], 1)
@@ -254,22 +279,43 @@ if __name__ == "__main__":
         print(yolo_target_to_xyxy(target))
 
     def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
-
         torch.manual_seed(0)
-        classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
+        classes = F.one_hot(
+            torch.randint(
+                0,
+                C,
+                (
+                    S,
+                    S,
+                ),
+            ),
+            num_classes=C,
+        )
         coords = torch.randn(S, S, B * 5)
-        pred = torch.cat((classes, coords), dim=-1)
-        pred.unsqueeze_(0)
-        pred = torch.cat([pred] * BATCH_SIZE, dim=0)
+        output = torch.cat((classes, coords), dim=-1)
+        output.unsqueeze_(0)
+        output = torch.cat([output] * BATCH_SIZE, dim=0)
 
-        target_classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
-        target_coords = torch.cat((torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1)
+        target_classes = F.one_hot(
+            torch.randint(
+                0,
+                C,
+                (
+                    S,
+                    S,
+                ),
+            ),
+            num_classes=C,
+        )
+        target_coords = torch.cat(
+            (torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1
+        )
         target = torch.cat((target_classes, target_coords), dim=2)
         target.unsqueeze_(0)
         target = torch.cat([target] * BATCH_SIZE, dim=0)
 
-        return pred, target
-    
+        return output, target
+
     def different_batch_size(b):
         pred, target = random_output_and_target(b)
         try:
@@ -277,8 +323,7 @@ if __name__ == "__main__":
             yolo_target_to_xyxy(target)
         except Exception as e:
             print(e)
-    
+
     different_batch_size(1)
     different_batch_size(5)
-    test_xyxy_to_yolo_target()
-
+    # test_xyxy_to_yolo_target()

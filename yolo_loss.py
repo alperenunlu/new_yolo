@@ -112,8 +112,23 @@ class YOLOLoss(nn.Module):
 
 
 if __name__ == "__main__":
-    output = torch.rand(2, S, S, B * 5 + C)
-    target = torch.rand(2, S, S, 5 + C)
+    def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
+
+        torch.manual_seed(0)
+        classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
+        coords = torch.randn(S, S, B * 5)
+        output = torch.cat((classes, coords), dim=-1)
+        output.unsqueeze_(0)
+        output = torch.cat([output] * BATCH_SIZE, dim=0)
+
+        target_classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
+        target_coords = torch.cat((torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1)
+        target = torch.cat((target_classes, target_coords), dim=2)
+        target.unsqueeze_(0)
+        target = torch.cat([target] * BATCH_SIZE, dim=0)
+
+        return output, target
 
     loss = YOLOLoss()
+    output, target = random_output_and_target()
     print(loss(output, target))
