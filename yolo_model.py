@@ -34,16 +34,18 @@ class DetectionHead(nn.Module):
         B = config.B
         C = config.C
 
-        inner_channels = 512
+        inner_channels = 1024
         self.depth = 5 * B + C
         stride = 2 if self.S == 7 else 1 if self.S == 14 else 0
         self.model = nn.Sequential(
-            Block(in_channels, inner_channels, 1),
-            Block(inner_channels, inner_channels * 2, 3, stride, 1),
-            Block(inner_channels * 2, inner_channels, 1),
-            Block(inner_channels, inner_channels * 2, 3, 1, 1),
-            Block(inner_channels * 2, inner_channels, 1),
-            nn.Conv2d(inner_channels, self.depth, 1),
+            Block(in_channels, inner_channels, 3, 1, 1),
+            Block(inner_channels, inner_channels, 3, stride, 1),
+            Block(inner_channels, inner_channels, 3, 1, 1),
+            Block(inner_channels, inner_channels, 3, 1, 1),
+            nn.Flatten(),
+            nn.Linear(inner_channels * self.S * self.S, 4096),
+            nn.LeakyReLU(inplace=True),
+            nn.Linear(4096, self.S * self.S * self.depth),
         )
 
     def forward(self, x):

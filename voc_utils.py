@@ -27,7 +27,7 @@ train_transforms = v2.Compose(
             translate=(0.2, 0.2),
             shear=10,
         ),
-        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 
@@ -36,7 +36,7 @@ test_transforms = v2.Compose(
         v2.ToImage(),
         v2.Resize(config.IMAGE_SIZE),
         v2.ToDtype(torch.float32, scale=True),
-        v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        # v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 

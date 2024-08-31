@@ -10,6 +10,62 @@ from torch import Tensor
 from config_parser import config
 
 
+def xyxy_to_yolo_target(boxes: BoundingBoxes, labels: Tensor, config=config) -> Tensor:
+    """
+    boxes: BoundingBoxes object with shape (N, 4) or (4)
+    labels: Tensor of shape (N,) or ()
+
+    boxes format: [x1, y1, x2, y2]
+    labels format: [label1, label2, ..., labelN]
+
+    target format: [c1, c2, ..., C, conf, cx, cy, w, h]
+        where:
+            c1, c2, ..., C = one-hot encoded labels
+            conf = 1 if object exists in cell
+            cx, cy = center of the bbox relative to the cell
+            w, h = width and height of the bbox relative to the image size
+    """
+    S = config.S
+    C = config.C
+
+    if boxes.dim() == 1:
+        boxes = boxes.unsqueeze(0)
+    if labels.dim() == 0:
+        labels = labels.unsqueeze(0)
+
+    assert boxes.format == BoundingBoxFormat.XYXY
+
+    # Since the boxes could be in the same cell we shuffle them to avoid bias
+    # indices = torch.randperm(len(boxes))
+    # boxes = boxes[indices]
+    # labels = labels[indices]
+
+    cx, cy, w, h = box_convert(boxes, in_fmt="xyxy", out_fmt="cxcywh").unbind(-1)
+    canvas_size = config.IMAGE_SIZE
+    cell_w = canvas_size[0] / S
+    cell_h = canvas_size[1] / S
+
+    center_row = (cx / cell_w).floor().long().clamp(0, S - 1)
+    center_col = (cy / cell_h).floor().long().clamp(0, S - 1)
+
+    norm_center_x = (cx % cell_w) / cell_w
+    norm_center_y = (cy % cell_h) / cell_h
+    norm_bndbox_w = w / canvas_size[0]
+    norm_bndbox_h = h / canvas_size[1]
+
+    coord = torch.stack(
+        (norm_center_x, norm_center_y, norm_bndbox_w, norm_bndbox_h), dim=-1
+    )
+
+    target = torch.zeros(S, S, 5 + C)
+    # -1 to match the labels of torchvision
+    target[center_row, center_col, :C] = F.one_hot(labels - 1, C).float()
+    target[center_row, center_col, C] = 1
+    target[center_row, center_col, C + 1 : C + 5] = coord
+
+    return target
+
+
 def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
     """
     bbox: Tensor of shape (N, S, S, B, 4) or (S, S, 4)
@@ -20,6 +76,7 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
 
     Converts the bounding boxes from yolo format to xyxy format
     """
+    bbox = bbox.detach()
     if bbox.dim() == 3:
         bbox = bbox[None, :, :, None, :]
 
@@ -63,62 +120,6 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
     xyxy = xyxy.squeeze(-2)
 
     return xyxy
-
-
-def xyxy_to_yolo_target(boxes: BoundingBoxes, labels: Tensor, config=config) -> Tensor:
-    """
-    boxes: BoundingBoxes object with shape (N, 4) or (4)
-    labels: Tensor of shape (N,) or ()
-
-    boxes format: [x1, y1, x2, y2]
-    labels format: [label1, label2, ..., labelN]
-
-    target format: [c1, c2, ..., C, conf, cx, cy, w, h]
-        where:
-            c1, c2, ..., C = one-hot encoded labels
-            conf = 1 if object exists in cell
-            cx, cy = center of the bbox relative to the cell
-            w, h = width and height of the bbox relative to the image size
-    """
-    S = config.S
-    C = config.C
-
-    if boxes.dim() == 1:
-        boxes = boxes.unsqueeze(0)
-    if labels.dim() == 0:
-        labels = labels.unsqueeze(0)
-
-    assert boxes.format == BoundingBoxFormat.XYXY
-
-    # Since the boxes could be in the same cell we shuffle them to avoid bias
-    indices = torch.randperm(len(boxes))
-    boxes = boxes[indices]
-    labels = labels[indices]
-
-    cx, cy, w, h = box_convert(boxes, in_fmt="xyxy", out_fmt="cxcywh").unbind(-1)
-    canvas_size = config.IMAGE_SIZE
-    cell_w = canvas_size[0] / S
-    cell_h = canvas_size[1] / S
-
-    center_row = (cx / cell_w).floor().long().clamp(0, S - 1)
-    center_col = (cy / cell_h).floor().long().clamp(0, S - 1)
-
-    norm_center_x = (cx % cell_w) / cell_w
-    norm_center_y = (cy % cell_h) / cell_h
-    norm_bndbox_w = w / canvas_size[0]
-    norm_bndbox_h = h / canvas_size[1]
-
-    coord = torch.stack(
-        (norm_center_x, norm_center_y, norm_bndbox_w, norm_bndbox_h), dim=-1
-    )
-
-    target = torch.zeros(S, S, 5 + C)
-    # -1 to match the labels of torchvision
-    target[center_row, center_col, :C] = F.one_hot(labels - 1, C).float()
-    target[center_row, center_col, C] = 1
-    target[center_row, center_col, C + 1 : C + 5] = coord
-
-    return target
 
 
 def yolo_target_to_xyxy(
@@ -225,6 +226,7 @@ def yolo_output_to_xyxy(
 
 
 def yolo_resp_bbox(output, target, config=config):
+    output, target = output.detach(), target.detach()
     S = config.S
     B = config.B
     batch_size = output.size(0)
@@ -257,7 +259,9 @@ def yolo_resp_bbox(output, target, config=config):
 
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
-    return best_bbox
+    avg_iou = ious.mean().item()
+
+    return best_bbox, avg_iou
 
 
 if __name__ == "__main__":
@@ -326,4 +330,4 @@ if __name__ == "__main__":
 
     different_batch_size(1)
     different_batch_size(5)
-    # test_xyxy_to_yolo_target()
+    test_xyxy_to_yolo_target()

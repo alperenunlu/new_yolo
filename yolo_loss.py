@@ -53,15 +53,15 @@ class YOLOLoss(nn.Module):
         output_boxes = output[..., C:].contiguous().view(-1, S, S, B, 5)
         target_boxes = target[..., C:].contiguous().view(-1, S, S, 5)
 
-        best_bbox = yolo_resp_bbox(output_boxes[..., 1:], target_boxes[..., 1:], config)
+        best_bbox, avg_iou = yolo_resp_bbox(output_boxes[..., 1:], target_boxes[..., 1:], config)
 
         # Use advanced indexing
-        resp_boxes = output_boxes[
-            torch.arange(BATCH_SIZE)[:, None, None],
-            torch.arange(S)[None, :, None],
-            torch.arange(S)[None, None, :],
-            best_bbox,
-        ]
+        resp_boxes = output_boxes.gather(
+            -2,
+            best_bbox.unsqueeze(-1)
+            .unsqueeze(-1)
+            .expand(-1, -1, -1, -1, output_boxes.size(-1)),
+        ).squeeze()
 
         resp_coords = resp_boxes[..., 1:]
         target_coords = target_boxes[..., 1:]
@@ -108,21 +108,43 @@ class YOLOLoss(nn.Module):
         loss = box_loss + conf_loss + noobj_loss + class_loss
         loss = loss / BATCH_SIZE
 
-        return loss
+        return loss, avg_iou
 
 
 if __name__ == "__main__":
-    def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
 
+    def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
         torch.manual_seed(0)
-        classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
+        classes = F.one_hot(
+            torch.randint(
+                0,
+                C,
+                (
+                    S,
+                    S,
+                ),
+            ),
+            num_classes=C,
+        )
         coords = torch.randn(S, S, B * 5)
         output = torch.cat((classes, coords), dim=-1)
         output.unsqueeze_(0)
         output = torch.cat([output] * BATCH_SIZE, dim=0)
 
-        target_classes = F.one_hot(torch.randint(0, C, (S, S,)), num_classes=C)
-        target_coords = torch.cat((torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1)
+        target_classes = F.one_hot(
+            torch.randint(
+                0,
+                C,
+                (
+                    S,
+                    S,
+                ),
+            ),
+            num_classes=C,
+        )
+        target_coords = torch.cat(
+            (torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1
+        )
         target = torch.cat((target_classes, target_coords), dim=2)
         target.unsqueeze_(0)
         target = torch.cat([target] * BATCH_SIZE, dim=0)

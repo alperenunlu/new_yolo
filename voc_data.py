@@ -4,8 +4,10 @@ from torchvision.datasets import wrap_dataset_for_transforms_v2
 from torch.utils.data import DataLoader
 from torch.utils.data import ConcatDataset
 
-batch_size = 8
-num_workers = 2
+from config_parser import config
+
+batch_size = config.SUBDIVISION
+num_workers = config.NUM_WORKERS
 
 
 train_datasets = [
