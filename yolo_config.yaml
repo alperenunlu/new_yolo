@@ -28,3 +28,17 @@ VOC_DETECTION_CATEGORIES:
   - "sofa"
   - "train"
   - "tvmonitor"
+
+L_coord: 5.0
+L_noobj: 0.5
+
+MODEL: "resnet50"
+
+BATCH_SIZE: 8
+NUM_WORKERS: 6
+NUM_EPOCHS: 100
+
+LEARNING_RATE: 0.0005
+WEIGHT_DECAY: 0.0005
+STEPS: [200,400,600,20000,30000]
+SCALES: [2.5, 2, 2, 0.1, 0.1]
