@@ -17,7 +17,12 @@ def draw_yolo(
     mode="output",
     pil=True,
 ) -> Tensor:
-    assert target.dim() == 3, "Only one sample"
+    assert image.dim() == 3 and target.dim() == 3, "Only one sample"
+
+    image = v2.Normalize(
+        mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+        std=[1 / 0.229, 1 / 0.224, 1 / 0.225],
+    )(image)
 
     if mode == "output":
         boxes, labels, _ = yolo_output_to_xyxy(target, config, threshold)

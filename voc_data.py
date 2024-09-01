@@ -7,9 +7,8 @@ from voc_utils import get_transforms_func, collate_fn
 from typing import Tuple
 from config_parser import YOLOCONFIG
 
+
 def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
-
-
     train_datasets = [
         wrap_dataset_for_transforms_v2(
             VOCDetection(
@@ -30,11 +29,11 @@ def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
             year="2007",
             image_set="test",
             download=False,
-            transforms=get_transforms_func(config, "validation")
+            transforms=get_transforms_func(config, "validation"),
         )
     )
 
-    train_datasets_concat= ConcatDataset(train_datasets)
+    train_datasets_concat = ConcatDataset(train_datasets)
 
     train_loader = DataLoader(
         train_datasets_concat,
@@ -54,9 +53,12 @@ def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
 
     return train_loader, test_loader
 
+
 if __name__ == "__main__":
     from config_parser import load_config
+
     config = load_config("yolo_config.yaml")
     train_loader, test_loader = get_dataloaders(config)
     print(len(train_loader), len(test_loader))
     print(train_loader.dataset[0][0].shape, train_loader.dataset[0][1]["target"].shape)
+

@@ -9,8 +9,8 @@ class Block(nn.Module):
         in_channels,
         out_channels,
         kernel_size,
-        stride = 1,
-        padding = 0,
+        stride=1,
+        padding=0,
     ):
         super().__init__()
         self.layer = nn.Sequential(
@@ -53,7 +53,11 @@ class DetectionHead(nn.Module):
 
 
 class YOLOv1ResNet(nn.Module):
-    def __init__(self, config: YOLOCONFIG, mode="detection",):
+    def __init__(
+        self,
+        config: YOLOCONFIG,
+        mode="detection",
+    ):
         backbone = config.MODEL
         super().__init__()
         self.mode = mode
@@ -75,11 +79,12 @@ class YOLOv1ResNet(nn.Module):
         elif self.mode == "classification":
             x = self.resnet(x)
         return x
-    
+
 
 if __name__ == "__main__":
     import torch
     from config_parser import load_config
+
     config = load_config("yolo_config.yaml")
     model = YOLOv1ResNet(config)
     print(model)
