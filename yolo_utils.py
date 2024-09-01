@@ -282,14 +282,7 @@ if __name__ == "__main__":
     def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
         torch.manual_seed(0)
         classes = F.one_hot(
-            torch.randint(
-                0,
-                C,
-                (
-                    S,
-                    S,
-                ),
-            ),
+            torch.randint(0, C, (S, S)),
             num_classes=C,
         )
         coords = torch.randn(S, S, B * 5)
@@ -298,14 +291,7 @@ if __name__ == "__main__":
         output = torch.cat([output] * BATCH_SIZE, dim=0)
 
         target_classes = F.one_hot(
-            torch.randint(
-                0,
-                C,
-                (
-                    S,
-                    S,
-                ),
-            ),
+            torch.randint(0, C, (S, S)),
             num_classes=C,
         )
         target_coords = torch.cat(

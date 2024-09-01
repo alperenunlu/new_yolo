@@ -49,7 +49,6 @@ class YOLOLoss(nn.Module):
         obj_mask = target[..., C] == 1
         noobj_mask = ~obj_mask
 
-        # Which boxes in each cell is responsible for the prediction
         output_boxes = output[..., C:].view(-1, S, S, B, 5)
         target_boxes = target[..., C:].view(-1, S, S, 5)
 
@@ -59,7 +58,6 @@ class YOLOLoss(nn.Module):
             config,
         )
 
-        # Use advanced indexing
         resp_boxes = output_boxes.gather(
             -2,
             best_bbox.unsqueeze(-1)
@@ -71,43 +69,31 @@ class YOLOLoss(nn.Module):
         target_coords = target_boxes[..., 1:]
 
         # Box Loss
+        obj_resp_coords = resp_coords[obj_mask]
+        obj_target_coords = target_coords[obj_mask]
 
-        center_loss = F.mse_loss(
-            target_coords[obj_mask][..., :2],
-            resp_coords[obj_mask][..., :2],
-            reduction="sum",
+        center_loss = torch.sum(
+            (obj_target_coords[..., :2] - obj_resp_coords[..., :2]) ** 2
         )
 
-        wh_loss = F.mse_loss(
-            target_coords[obj_mask][..., 2:],
-            (resp_coords[obj_mask][..., 2:] ** 2).sqrt(),
-            reduction="sum",
+        wh_loss = torch.sum(
+            (obj_target_coords[..., 2:] - (obj_resp_coords[..., 2:] ** 2).sqrt()) ** 2
         )
 
         box_loss = self.L_coord * (center_loss + wh_loss)
 
         # Object Loss
-
-        conf_loss = F.mse_loss(
-            resp_boxes[obj_mask][..., 0],
-            target_boxes[obj_mask][..., 0],
-            reduction="sum",
+        conf_loss = torch.sum(
+            (resp_boxes[obj_mask][..., 0] - target_boxes[obj_mask][..., 0]) ** 2
         )
 
         # No Object Loss
-        noobj_loss = self.L_noobj * F.mse_loss(
-            resp_boxes[noobj_mask][..., 0],
-            target_boxes[noobj_mask][..., 0],
-            reduction="sum",
+        noobj_loss = self.L_noobj * torch.sum(
+            (resp_boxes[noobj_mask][..., 0] - target_boxes[noobj_mask][..., 0]) ** 2
         )
 
         # Class Loss
-
-        class_loss = F.mse_loss(
-            output[..., :C][obj_mask],
-            target[..., :C][obj_mask],
-            reduction="sum",
-        )
+        class_loss = torch.sum((output[..., :C] - target[..., :C]) ** 2)
 
         loss = box_loss + conf_loss + noobj_loss + class_loss
         loss = loss / BATCH_SIZE
