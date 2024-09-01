@@ -50,10 +50,14 @@ class YOLOLoss(nn.Module):
         noobj_mask = ~obj_mask
 
         # Which boxes in each cell is responsible for the prediction
-        output_boxes = output[..., C:].contiguous().view(-1, S, S, B, 5)
-        target_boxes = target[..., C:].contiguous().view(-1, S, S, 5)
+        output_boxes = output[..., C:].view(-1, S, S, B, 5)
+        target_boxes = target[..., C:].view(-1, S, S, 5)
 
-        best_bbox, ious = yolo_resp_bbox(output_boxes[..., 1:].clone().detach(), target_boxes[..., 1:].clone().detach(), config)
+        best_bbox, ious = yolo_resp_bbox(
+            output_boxes[..., 1:].detach(),
+            target_boxes[..., 1:].detach(),
+            config,
+        )
 
         # Use advanced indexing
         resp_boxes = output_boxes.gather(
