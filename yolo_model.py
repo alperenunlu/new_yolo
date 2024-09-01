@@ -1,6 +1,6 @@
 from torch import nn
 from torchvision.models import resnet34, resnet50
-from config_parser import config
+from config_parser import YOLOCONFIG
 
 
 class Block(nn.Module):
@@ -28,7 +28,7 @@ class Block(nn.Module):
 class DetectionHead(nn.Module):
     """The layers added on for detection as described in the paper."""
 
-    def __init__(self, in_channels, config=config):
+    def __init__(self, in_channels, config: YOLOCONFIG):
         super().__init__()
         self.S = config.S
         B = config.B
@@ -53,7 +53,7 @@ class DetectionHead(nn.Module):
 
 
 class YOLOv1ResNet(nn.Module):
-    def __init__(self, mode="detection", config=config):
+    def __init__(self, config: YOLOCONFIG, mode="detection",):
         backbone = config.MODEL
         super().__init__()
         self.mode = mode
@@ -65,7 +65,7 @@ class YOLOv1ResNet(nn.Module):
         in_features = self.resnet.fc.in_features
         if mode == "detection":
             self.backbone = nn.Sequential(*list(self.resnet.children())[:-2])
-            self.detection_head = DetectionHead(in_features, config=config)
+            self.detection_head = DetectionHead(in_features, config)
             self.backbone.get_submodule("7").requires_grad_(True)
 
     def forward(self, x):
@@ -79,9 +79,11 @@ class YOLOv1ResNet(nn.Module):
 
 if __name__ == "__main__":
     import torch
-    model = YOLOv1ResNet()
+    from config_parser import load_config
+    config = load_config("yolo_config.yaml")
+    model = YOLOv1ResNet(config)
     print(model)
     print(model(torch.empty(1, 3, 448, 448)).shape)
-    model = YOLOv1ResNet(mode="classification")
+    model = YOLOv1ResNet(config, mode="classification")
     print(model)
     print(model(torch.empty(1, 3, 448, 448)).shape)

@@ -3,7 +3,6 @@ from typing import List
 import yaml
 from dataclasses import dataclass
 
-config = yaml.safe_load(open("yolo_config.yaml", "r"))
 
 @dataclass
 class YOLOCONFIG:
@@ -26,7 +25,11 @@ class YOLOCONFIG:
     WEIGHT_DECAY: float
 
 
-config = YOLOCONFIG(**config)
+def load_config(path: str) -> YOLOCONFIG:
+    config = yaml.safe_load(open(path, "r"))
+    return YOLOCONFIG(**config)
+
 
 if __name__ == "__main__":
+    config = load_config("yolo_config.yaml")
     print(config)

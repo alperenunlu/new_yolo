@@ -4,23 +4,15 @@ import torch.nn.functional as F
 
 from torch import Tensor
 
-from config_parser import config
+from config_parser import YOLOCONFIG
 
 from yolo_utils import yolo_resp_bbox
 
-S = config.S
-B = config.B
-C = config.C
-
 
 class YOLOLoss(nn.Module):
-    def __init__(self, config=config):
+    def __init__(self, config: YOLOCONFIG):
         super().__init__()
-        self.S = config.S
-        self.B = config.B
-        self.C = config.C
-        self.L_coord = config.L_coord
-        self.L_noobj = config.L_noobj
+        self.config = config
 
     def forward(self, output: Tensor, target: Tensor) -> Tensor:
         """
@@ -41,9 +33,9 @@ class YOLOLoss(nn.Module):
             obj = 1 if object exists in cell
             noobj = 1 if no object exists in cell
         """
-        S = self.S
-        B = self.B
-        C = self.C
+        S = self.config.S
+        B = self.config.B
+        C = self.config.C
         BATCH_SIZE = output.size(0)
 
         obj_mask = target[..., C] == 1
@@ -53,9 +45,7 @@ class YOLOLoss(nn.Module):
         target_boxes = target[..., C:].view(-1, S, S, 5)
 
         best_bbox, ious = yolo_resp_bbox(
-            output_boxes[..., 1:].detach(),
-            target_boxes[..., 1:].detach(),
-            config,
+            output_boxes[..., 1:].detach(), target_boxes[..., 1:].detach(), self.config
         )
 
         resp_boxes = output_boxes.gather(
@@ -80,7 +70,7 @@ class YOLOLoss(nn.Module):
             (obj_target_coords[..., 2:] - (obj_resp_coords[..., 2:] ** 2).sqrt()) ** 2
         )
 
-        box_loss = self.L_coord * (center_loss + wh_loss)
+        box_loss = self.config.L_coord * (center_loss + wh_loss)
 
         # Object Loss
         conf_loss = torch.sum(
@@ -88,7 +78,7 @@ class YOLOLoss(nn.Module):
         )
 
         # No Object Loss
-        noobj_loss = self.L_noobj * torch.sum(
+        noobj_loss = self.config.L_noobj * torch.sum(
             (resp_boxes[noobj_mask][..., 0] - target_boxes[noobj_mask][..., 0]) ** 2
         )
 
@@ -129,6 +119,9 @@ if __name__ == "__main__":
 
         return output, target
 
-    loss = YOLOLoss()
+    from config_parser import load_config
+
+    config = load_config("yolo_config.yaml")
+    loss = YOLOLoss(config)
     output, target = random_output_and_target()
     print(loss(output, target))

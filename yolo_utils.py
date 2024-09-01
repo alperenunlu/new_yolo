@@ -1,17 +1,17 @@
 import torch
-
 import torch.nn.functional as F
-from torch.optim.lr_scheduler import LRScheduler
+
 from torchvision.ops import box_convert, box_iou
 
 from typing import Tuple, List
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 from torch import Tensor
+from config_parser import YOLOCONFIG
 
-from config_parser import config
 
-
-def xyxy_to_yolo_target(boxes: BoundingBoxes, labels: Tensor, config=config) -> Tensor:
+def xyxy_to_yolo_target(
+    boxes: BoundingBoxes, labels: Tensor, config: YOLOCONFIG
+) -> Tensor:
     """
     boxes: BoundingBoxes object with shape (N, 4) or (4)
     labels: Tensor of shape (N,) or ()
@@ -67,7 +67,7 @@ def xyxy_to_yolo_target(boxes: BoundingBoxes, labels: Tensor, config=config) -> 
     return target
 
 
-def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
+def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOCONFIG) -> Tensor:
     """
     bbox: Tensor of shape (N, S, S, B, 4) or (S, S, 4)
     bbox format: [x1, y1, x2, y2]
@@ -123,7 +123,7 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
 
 
 def yolo_target_to_xyxy(
-    target: Tensor, threshold=0.5, config=config
+    target: Tensor, config: YOLOCONFIG, threshold=0.5
 ) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
     """
     target: Tensor of shape (N, S, S, 5 + C) or (S, S, 5 + C)
@@ -187,7 +187,7 @@ def yolo_target_to_xyxy(
 
 
 def yolo_output_to_xyxy(
-    output: Tensor, threshold=0.5, config=config
+    output: Tensor, config: YOLOCONFIG, threshold=0.5
 ) -> Tuple[BoundingBoxes, Tensor, Tensor]:
     """
     output: Tensor of shape (N, S, S, B * 5 + C)
@@ -219,13 +219,13 @@ def yolo_output_to_xyxy(
     output_best_boxes = torch.cat([classes, best_boxes], dim=-1)
 
     bboxes, labels, confidences = yolo_target_to_xyxy(
-        output_best_boxes, threshold, config
+        output_best_boxes, config, threshold
     )
 
     return bboxes, labels, confidences
 
 
-def yolo_resp_bbox(output, target, config=config):
+def yolo_resp_bbox(output, target, config: YOLOCONFIG):
     S = config.S
     B = config.B
     batch_size = output.size(0)
@@ -262,6 +262,9 @@ def yolo_resp_bbox(output, target, config=config):
 
 
 if __name__ == "__main__":
+    from config_parser import load_config
+
+    config = load_config("yolo_config.yaml")
 
     def test_xyxy_to_yolo_target():
         coord1 = torch.randint(0, 224, (1, 2))
@@ -273,11 +276,11 @@ if __name__ == "__main__":
             canvas_size=(448, 448),
         )
         print(boxes)
-        target = xyxy_to_yolo_target(boxes, torch.tensor([19]))
+        target = xyxy_to_yolo_target(boxes, torch.tensor([19]), config)
 
         print(target.shape)
         print(target[*torch.where(target[..., 20] == 1), :])
-        print(yolo_target_to_xyxy(target))
+        print(yolo_target_to_xyxy(target, config))
 
     def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
         torch.manual_seed(0)
@@ -306,8 +309,8 @@ if __name__ == "__main__":
     def different_batch_size(b):
         pred, target = random_output_and_target(b)
         try:
-            yolo_output_to_xyxy(pred)
-            yolo_target_to_xyxy(target)
+            yolo_output_to_xyxy(pred, config)
+            yolo_target_to_xyxy(target, config)
         except Exception as e:
             print(e)
 
