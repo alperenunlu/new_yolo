@@ -129,20 +129,19 @@ if __name__ == "__main__":
     from yolo_model import YOLOv1ResNet
     from yolo_loss import YOLOLoss
     from voc_data import train_loader
-    from yolo_utils import YOLOV1Scheduler
 
     import torch
     import torch.optim as optim
+    from torch.optim.lr_scheduler import OneCycleLR
 
     device = torch.device("mps")
-    model = YOLOv1ResNet()
-    model = torch.jit.trace(model, torch.empty(1, 3, 448, 448)).to(device)
+    model = YOLOv1ResNet().to(device)
     criterion = YOLOLoss()
     optimizer = optim.Adam(
         model.parameters(), lr=config.LEARNING_RATE, weight_decay=config.WEIGHT_DECAY
     )
 
-    scheduler = YOLOV1Scheduler(optimizer, config.STEPS, config.SCALES)
+    scheduler = OneCycleLR(optimizer, 0.01, steps_per_epoch=len(train_loader), epochs=config.NUM_EPOCHS)
 
     for epoch in range(config.NUM_EPOCHS):
         map, map50, metric, loss = train_one_epoch(

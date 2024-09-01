@@ -24,8 +24,6 @@ class YOLOCONFIG:
 
     LEARNING_RATE: float
     WEIGHT_DECAY: float
-    STEPS: List[int]
-    SCALES: List[float]
 
 
 config = YOLOCONFIG(**config)

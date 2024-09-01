@@ -77,7 +77,6 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config=config) -> Tensor:
 
     Converts the bounding boxes from yolo format to xyxy format
     """
-    bbox = bbox.detach()
     if bbox.dim() == 3:
         bbox = bbox[None, :, :, None, :]
 
@@ -227,7 +226,6 @@ def yolo_output_to_xyxy(
 
 
 def yolo_resp_bbox(output, target, config=config):
-    output, target = output.detach(), target.detach()
     S = config.S
     B = config.B
     batch_size = output.size(0)
@@ -261,20 +259,6 @@ def yolo_resp_bbox(output, target, config=config):
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
     return best_bbox, ious
-
-
-class YOLOV1Scheduler(LRScheduler):
-    def __init__(self, optimizer, steps, scales):
-        self.steps = steps.copy()
-        self.scales = scales.copy()
-        super().__init__(optimizer)
-
-    def get_lr(self):
-        if len(self.steps) > 0 and self.last_epoch > self.steps[0]:
-            self.steps.pop(0)
-            gamma = self.scales.pop(0)
-            return [group["lr"] * gamma for group in self.optimizer.param_groups]
-        return [group["lr"] for group in self.optimizer.param_groups]
 
 
 if __name__ == "__main__":
