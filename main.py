@@ -10,6 +10,7 @@ from voc_data import get_dataloaders
 from yolo_model import YOLOv1ResNet
 from yolo_loss import YOLOLoss
 from yolo_trainer import train_one_epoch, validate_one_epoch
+from yolo_train_utils import save_checkpoint, load_checkpoint
 
 device = torch.device(
     "cuda"
@@ -22,6 +23,9 @@ device = torch.device(
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--config", "-c", type=str, default="yolo_config.yaml", help="Path to config file"
+)
+parser.add_argument(
+    "--checkpoint", "-cp", type=str, default=None, help="Path to checkpoint file"
 )
 
 if __name__ == "__main__":
@@ -38,6 +42,10 @@ if __name__ == "__main__":
         epochs=config.NUM_EPOCHS,
         pct_start=0.5,
     )
+    if args.checkpoint:
+        model, optimizer, scheduler, start_epoch = load_checkpoint(
+            model, optimizer, scheduler, args.checkpoint
+        )
     writer = SummaryWriter()
     for epoch in range(config.NUM_EPOCHS):
         train_loss, train_iou, train_map, train_lr = train_one_epoch(
@@ -60,4 +68,18 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
+
+        save_checkpoint(
+            model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
+            epoch=epoch,
+            config=config,
+            map_value=test_map,
+            map50=test_map,
+            metric_compute=test_map,
+            loss=test_loss,
+            path=f"checkpoints/yolo_v1_resnet_{epoch}.pth",
+        )
+
     writer.close()

@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 
-from torchvision.ops import box_convert, box_iou
+from torchvision.ops import box_convert, box_iou, nms
 
 from typing import Tuple, List
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
@@ -182,6 +182,12 @@ def yolo_target_to_xyxy(
 
     labels_list = [valid_labels[mask] for mask in valid_mask]
     confidences_list = [valid_confidences[mask] for mask in valid_mask]
+
+    for i in range(batch_size):
+        keep = nms(boxes_list[i], confidences_list[i], iou_threshold=0.5)
+        boxes_list[i] = boxes_list[i][keep]
+        labels_list[i] = labels_list[i][keep]
+        confidences_list[i] = confidences_list[i][keep]
 
     return boxes_list, labels_list, confidences_list
 
