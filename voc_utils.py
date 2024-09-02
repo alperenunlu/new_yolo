@@ -44,7 +44,7 @@ def get_transforms_func(config: YOLOCONFIG, mode: str) -> Callable[..., sample_t
                 v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
             ]
         )
-    elif mode == "validation":
+    elif mode == "valid":
         transforms = v2.Compose(
             [
                 v2.ToImage(),
@@ -54,7 +54,7 @@ def get_transforms_func(config: YOLOCONFIG, mode: str) -> Callable[..., sample_t
             ]
         )
     else:
-        raise ValueError(f"Invalid mode: {mode}. Choose 'train' or 'validation'.")
+        raise ValueError(f"Invalid mode: {mode}. Choose 'train' or 'valid'.")
 
     return TransformWrapper(transforms, config)
 
@@ -71,4 +71,4 @@ if __name__ == "__main__":
 
     config = load_config("yolo_config.yaml")
     print(get_transforms_func(config, "train"))
-    print(get_transforms_func(config, "validation"))
+    print(get_transforms_func(config, "valid"))

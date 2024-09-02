@@ -67,10 +67,10 @@ def log_epoch_summary(
     map_value = metric_compute["map"]
     map50 = metric_compute["map_50"]
 
-    writer.add_scalar(f"{prefix}/Epoch_mAP", map_value, epoch)
-    writer.add_scalar(f"{prefix}/Epoch_mAP50", map50, epoch)
-    writer.add_scalar(f"{prefix}/Epoch_Loss", running_loss / (batch_idx + 1), epoch)
-    writer.add_scalar(f"{prefix}/Epoch_IoU", running_iou / (batch_idx + 1), epoch)
+    writer.add_scalar(f"{prefix}/mAP", map_value, epoch)
+    writer.add_scalar(f"{prefix}/mAP50", map50, epoch)
+    writer.add_scalar(f"{prefix}/Loss", running_loss / (batch_idx + 1), epoch)
+    writer.add_scalar(f"{prefix}/IoU", running_iou / (batch_idx + 1), epoch)
 
     return map_value, map50, metric_compute, running_loss / (batch_idx + 1)
 

@@ -23,13 +23,13 @@ def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
         for split in ["train", "val"]
     ]
 
-    test_datasets = wrap_dataset_for_transforms_v2(
+    valid_datasets = wrap_dataset_for_transforms_v2(
         VOCDetection(
             root="./data",
             year="2007",
             image_set="test",
             download=False,
-            transforms=get_transforms_func(config, "validation"),
+            transforms=get_transforms_func(config, "valid"),
         )
     )
 
@@ -43,22 +43,22 @@ def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
         num_workers=config.NUM_WORKERS,
     )
 
-    test_loader = DataLoader(
-        test_datasets,
+    valid_loader = DataLoader(
+        valid_datasets,
         batch_size=config.SUBDIVISION,
         shuffle=False,
         collate_fn=collate_fn,
         num_workers=config.NUM_WORKERS,
     )
 
-    return train_loader, test_loader
+    return train_loader, valid_loader
 
 
 if __name__ == "__main__":
     from config_parser import load_config
 
     config = load_config("yolo_config.yaml")
-    train_loader, test_loader = get_dataloaders(config)
-    print(len(train_loader), len(test_loader))
+    train_loader, valid_loader = get_dataloaders(config)
+    print(len(train_loader), len(valid_loader))
     print(train_loader.dataset[0][0].shape, train_loader.dataset[0][1]["target"].shape)
 

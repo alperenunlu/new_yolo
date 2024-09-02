@@ -9,7 +9,7 @@ from config_parser import load_config
 from voc_data import get_dataloaders
 from yolo_model import YOLOv1ResNet
 from yolo_loss import YOLOLoss
-from yolo_trainer import train_one_epoch, validate_one_epoch
+from yolo_trainer import train_one_epoch, valid_one_epoch
 from yolo_train_utils import save_checkpoint, load_checkpoint
 
 device = torch.device(
@@ -31,7 +31,7 @@ parser.add_argument(
 if __name__ == "__main__":
     args = parser.parse_args()
     config = load_config(args.config)
-    train_loader, test_loader = get_dataloaders(config)
+    train_loader, valid_loader = get_dataloaders(config)
     model = YOLOv1ResNet(config).to(device)
     criterion = YOLOLoss(config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
@@ -48,7 +48,8 @@ if __name__ == "__main__":
         )
     writer = SummaryWriter()
     for epoch in range(config.NUM_EPOCHS):
-        train_loss, train_iou, train_map, train_lr = train_one_epoch(
+        # map_value, map50, metric_compute, running_loss / (batch_idx + 1)
+        train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
             model=model,
             optimizer=optimizer,
             loader=train_loader,
@@ -59,14 +60,16 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
-        test_loss, test_iou, test_map = validate_one_epoch(
-            model=model,
-            loader=test_loader,
-            criterion=criterion,
-            device=device,
-            writer=writer,
-            epoch=epoch,
-            config=config,
+        valid_map, valid_map50, valid_metric_compute, valid_loss = (
+            valid_one_epoch(
+                model=model,
+                loader=valid_loader,
+                criterion=criterion,
+                device=device,
+                writer=writer,
+                epoch=epoch,
+                config=config,
+            )
         )
 
         save_checkpoint(
@@ -75,10 +78,10 @@ if __name__ == "__main__":
             scheduler=scheduler,
             epoch=epoch,
             config=config,
-            map_value=test_map,
-            map50=test_map,
-            metric_compute=test_map,
-            loss=test_loss,
+            map_value=valid_map,
+            map50=valid_map50,
+            metric_compute=valid_metric_compute,
+            loss=valid_loss,
             path=f"checkpoints/yolo_v1_resnet_{epoch}.pth",
         )
 

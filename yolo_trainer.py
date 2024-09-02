@@ -67,12 +67,12 @@ def train_one_epoch(
         optimizer.zero_grad()
 
     return log_epoch_summary(
-        writer, metric, running_loss, running_iou, batch_idx, epoch, "Train"
+        writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Training"
     )
 
 
 @torch.no_grad()
-def validate_one_epoch(
+def valid_one_epoch(
     model: torch.nn.Module,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
@@ -107,7 +107,7 @@ def validate_one_epoch(
             global_step=global_step,
             batch_idx=batch_idx,
             config=config,
-            prefix="Validation",
+            prefix="Valid",
         )
 
         loop.set_postfix(
@@ -118,5 +118,5 @@ def validate_one_epoch(
         )
 
     return log_epoch_summary(
-        writer, metric, running_loss, running_iou, batch_idx, epoch, "Validation"
+        writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Valid"
     )
