@@ -41,9 +41,9 @@ if __name__ == "__main__":
         model, optimizer, scheduler, start_epoch = load_checkpoint(
             model, optimizer, scheduler, args.checkpoint
         )
+        start_epoch += 1
     writer = SummaryWriter()
-    for epoch in range(start_epoch, config.EPOCHS):
-        # map_value, map50, metric_compute, running_loss / (batch_idx + 1)
+    for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
             model=model,
             optimizer=optimizer,

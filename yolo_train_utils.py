@@ -24,20 +24,22 @@ def log_progress(
     config: YOLOConfig,
     lr: Optional[float] = None,
 ) -> None:
+    threshold = 0.9
+
     pred_boxes = [
         {"boxes": box, "labels": label, "scores": confidence}
-        for box, label, confidence in zip(*yolo_output_to_xyxy(outputs, config=config))
+        for box, label, confidence in zip(*yolo_output_to_xyxy(outputs, config=config, threshold=threshold))
     ]
     target_boxes = [
         {"boxes": box, "labels": label}
-        for box, label, _ in zip(*yolo_target_to_xyxy(targets, config=config))
+        for box, label, _ in zip(*yolo_target_to_xyxy(targets, config=config, threshold=threshold))
     ]
     metric_forward = metric(pred_boxes, target_boxes)
 
     if batch_idx % 50 == 0:
         writer.add_image(
             f"{prefix}/SampleDetections",
-            draw_yolo_grid(inputs, outputs, targets, config, threshold=0.5),
+            draw_yolo_grid(inputs, outputs, targets, config, threshold=threshold),
             global_step,
         )
 
@@ -110,4 +112,4 @@ def load_checkpoint(
     model.load_state_dict(checkpoint["model"])
     optimizer.load_state_dict(checkpoint["optimizer"])
     scheduler.load_state_dict(checkpoint["scheduler"])
-    return model, optimizer, scheduler, checkpoint["epoch"], checkpoint["config"]
+    return model, optimizer, scheduler, checkpoint["epoch"]

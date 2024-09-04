@@ -12,7 +12,9 @@ class YOLOConfig:
     IMAGE_SIZE: int
     VOC_DETECTION_CATEGORIES: List[str]
     L_coord: float
+    L_obj: float
     L_noobj: float
+    L_class: float
 
     MODEL: str
 

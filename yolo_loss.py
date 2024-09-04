@@ -73,7 +73,7 @@ class YOLOLoss(nn.Module):
         box_loss = self.config.L_coord * (center_loss + wh_loss)
 
         # Object Loss
-        conf_loss = torch.sum(
+        conf_loss = self.config.L_obj * torch.sum(
             (resp_boxes[obj_mask][..., 0] - target_boxes[obj_mask][..., 0]) ** 2
         )
 
@@ -83,7 +83,7 @@ class YOLOLoss(nn.Module):
         )
 
         # Class Loss
-        class_loss = torch.sum(
+        class_loss = self.config.L_class * torch.sum(
             (output[obj_mask][..., :C] - target[obj_mask][..., :C]) ** 2
         )
 
