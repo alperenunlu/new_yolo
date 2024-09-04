@@ -35,7 +35,7 @@ if __name__ == "__main__":
     model = YOLOv1ResNet(config).to(device)
     criterion = YOLOLoss(config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=50*len(train_loader), gamma=0.1)
+    scheduler = StepLR(optimizer, step_size=2*len(train_loader), gamma=0.8)
     start_epoch = 0
     if args.checkpoint:
         model, optimizer, scheduler, start_epoch = load_checkpoint(
