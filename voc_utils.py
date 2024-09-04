@@ -4,7 +4,7 @@ from torchvision.tv_tensors import TVTensor
 
 from typing import Tuple, Dict, Any, Union, Callable
 from torch import Tensor
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 from yolo_utils import xyxy_to_yolo_target
 
@@ -24,7 +24,7 @@ class TransformWrapper:
         return transformed
 
 
-def get_transforms_func(config: YOLOCONFIG, mode: str) -> Callable[..., sample_type]:
+def get_transforms_func(config: YOLOConfig, mode: str) -> Callable[..., sample_type]:
     if mode == "train":
         transforms = v2.Compose(
             [
@@ -37,7 +37,6 @@ def get_transforms_func(config: YOLOCONFIG, mode: str) -> Callable[..., sample_t
                     shear=10,
                 ),
                 v2.RandomHorizontalFlip(p=0.5),
-                v2.RandomRotation(degrees=(-15, 15)),
                 v2.RandomPerspective(distortion_scale=0.2, p=0.5),
                 v2.Resize(config.IMAGE_SIZE),
                 v2.ToDtype(torch.float32, scale=True),

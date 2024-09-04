@@ -6,13 +6,37 @@ from torchvision.utils import draw_bounding_boxes, make_grid
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
 
 from torch import Tensor
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
+
+COLORS = [
+    # "#000000",  # Black (background)
+    "#FF0000",  # Red (aeroplane)
+    "#00FF00",  # Green (bicycle)
+    "#0000FF",  # Blue (bird)
+    "#FFFF00",  # Yellow (boat)
+    "#00FFFF",  # Cyan (bottle)
+    "#FF00FF",  # Magenta (bus)
+    "#FFA500",  # Orange (car)
+    "#800080",  # Purple (cat)
+    "#00FF00",  # Lime (chair)
+    "#FFC0CB",  # Pink (cow)
+    "#008080",  # Teal (diningtable)
+    "#E6E6FA",  # Lavender (dog)
+    "#A52A2A",  # Brown (horse)
+    "#F5F5DC",  # Beige (motorbike)
+    "#800000",  # Maroon (person)
+    "#808000",  # Olive (pottedplant)
+    "#000080",  # Navy (sheep)
+    "#FF7F50",  # Coral (sofa)
+    "#40E0D0",  # Turquoise (train)
+    "#FFD700",  # Gold (tvmonitor)
+]
 
 
 def draw_yolo(
     image: Tensor,
     target: Tensor,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
     threshold=0.5,
     mode="output",
     pil=True,
@@ -35,8 +59,8 @@ def draw_yolo(
         image,
         boxes,
         labels=[config.VOC_DETECTION_CATEGORIES[i].upper() for i in labels],
+        colors=[COLORS[i] for i in labels],
         width=3,
-        colors="red",
         font="Courier",
         font_size=25,
     )
@@ -48,7 +72,7 @@ def draw_yolo(
 def draw_yolo_batch(
     images: Tensor,
     targets: Tensor,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
     threshold=0.5,
     mode="output",
     pil=True,
@@ -73,7 +97,7 @@ def draw_yolo_batch(
 
 
 def draw_yolo_grid(
-    images: Tensor, outputs: Tensor, targets: Tensor, config: YOLOCONFIG, threshold=0.5
+    images: Tensor, outputs: Tensor, targets: Tensor, config: YOLOConfig, threshold=0.5
 ) -> Tensor:
     assert (
         images.dim() == 4 and outputs.dim() == 4 and targets.dim() == 4

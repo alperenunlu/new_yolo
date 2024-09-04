@@ -4,13 +4,13 @@ import torch.nn.functional as F
 
 from torch import Tensor
 
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 from yolo_utils import yolo_resp_bbox
 
 
 class YOLOLoss(nn.Module):
-    def __init__(self, config: YOLOCONFIG):
+    def __init__(self, config: YOLOConfig):
         super().__init__()
         self.config = config
 
@@ -83,7 +83,9 @@ class YOLOLoss(nn.Module):
         )
 
         # Class Loss
-        class_loss = torch.sum((output[..., :C] - target[..., :C]) ** 2)
+        class_loss = torch.sum(
+            (output[obj_mask][..., :C] - target[obj_mask][..., :C]) ** 2
+        )
 
         loss = box_loss + conf_loss + noobj_loss + class_loss
         loss = loss / BATCH_SIZE

@@ -5,10 +5,10 @@ from torch.utils.data import ConcatDataset
 from voc_utils import get_transforms_func, collate_fn
 
 from typing import Tuple
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 
-def get_dataloaders(config: YOLOCONFIG) -> Tuple[DataLoader, DataLoader]:
+def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
     train_datasets = [
         wrap_dataset_for_transforms_v2(
             VOCDetection(
@@ -61,4 +61,3 @@ if __name__ == "__main__":
     train_loader, valid_loader = get_dataloaders(config)
     print(len(train_loader), len(valid_loader))
     print(train_loader.dataset[0][0].shape, train_loader.dataset[0][1]["target"].shape)
-

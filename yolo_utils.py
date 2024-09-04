@@ -6,11 +6,11 @@ from torchvision.ops import box_convert, box_iou, nms
 from typing import Tuple, List
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 from torch import Tensor
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 
 def xyxy_to_yolo_target(
-    boxes: BoundingBoxes, labels: Tensor, config: YOLOCONFIG
+    boxes: BoundingBoxes, labels: Tensor, config: YOLOConfig
 ) -> Tensor:
     """
     boxes: BoundingBoxes object with shape (N, 4) or (4)
@@ -37,17 +37,17 @@ def xyxy_to_yolo_target(
     assert boxes.format == BoundingBoxFormat.XYXY
 
     # Since the boxes could be in the same cell we shuffle them to avoid bias
-    # indices = torch.randperm(len(boxes))
-    # boxes = boxes[indices]
-    # labels = labels[indices]
+    indices = torch.randperm(len(boxes))
+    boxes = boxes[indices]
+    labels = labels[indices]
 
     cx, cy, w, h = box_convert(boxes, in_fmt="xyxy", out_fmt="cxcywh").unbind(-1)
     canvas_size = config.IMAGE_SIZE
-    cell_w = canvas_size[0] / S
-    cell_h = canvas_size[1] / S
+    cell_w = canvas_size[1] / S
+    cell_h = canvas_size[0] / S
 
-    center_row = (cx / cell_w).floor().long().clamp(0, S - 1)
-    center_col = (cy / cell_h).floor().long().clamp(0, S - 1)
+    center_col = (cx // cell_w).long().clamp(0, S - 1)
+    center_row = (cy // cell_h).long().clamp(0, S - 1)
 
     norm_center_x = (cx % cell_w) / cell_w
     norm_center_y = (cy % cell_h) / cell_h
@@ -67,7 +67,7 @@ def xyxy_to_yolo_target(
     return target
 
 
-def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOCONFIG) -> Tensor:
+def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOConfig) -> Tensor:
     """
     bbox: Tensor of shape (N, S, S, B, 4) or (S, S, 4)
     bbox format: [x1, y1, x2, y2]
@@ -82,36 +82,38 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOCONFIG) -> Tensor:
 
     N, S1, S2, B, _ = bbox.shape
     canvas_size = config.IMAGE_SIZE
-    cell_size_w = canvas_size[0] / S1
-    cell_size_h = canvas_size[1] / S2
+    cell_size_w = canvas_size[1] / S1
+    cell_size_h = canvas_size[0] / S2
 
     # Create meshgrid for cell indices
-    cx_offset, cy_offset = torch.meshgrid(
+    y_grid, x_grid = torch.meshgrid(
         torch.arange(S1, device=bbox.device).float(),
         torch.arange(S2, device=bbox.device).float(),
         indexing="ij",
     )
 
     # Reshape offsets to match bbox shape
-    cx_offset = cx_offset.view(1, S1, S2, 1, 1).expand(N, S1, S2, B, 1)
-    cy_offset = cy_offset.view(1, S1, S2, 1, 1).expand(N, S1, S2, B, 1)
+    x_grid = x_grid[None, :, :, None, None].expand(N, S1, S2, B, 1)
+    y_grid = y_grid[None, :, :, None, None].expand(N, S1, S2, B, 1)
 
     # Extract cx, cy, w, h from bbox
     cx, cy, w, h = bbox.split(1, dim=-1)
 
     # Convert cx and cy to absolute coordinates
-    cx_abs = (cx_offset + cx) * cell_size_w
-    cy_abs = (cy_offset + cy) * cell_size_h
+    abs_center_x = (x_grid + cx) * cell_size_w
+    abs_center_y = (y_grid + cy) * cell_size_h
 
     # Convert w and h to absolute sizes
-    w_abs = w * canvas_size[0]
-    h_abs = h * canvas_size[1]
-    w_abs = (w_abs**2).sqrt()
-    h_abs = (h_abs**2).sqrt()
+    width_abs = w * canvas_size[0]
+    height_abs = h * canvas_size[1]
+    width_abs = (width_abs**2).sqrt()
+    height_abs = (height_abs**2).sqrt()
 
     # Calculate x1, y1, x2, y2
     xyxy = box_convert(
-        torch.cat([cx_abs, cy_abs, w_abs, h_abs], dim=-1), "cxcywh", "xyxy"
+        torch.cat([abs_center_x, abs_center_y, width_abs, height_abs], dim=-1),
+        "cxcywh",
+        "xyxy",
     )
 
     # Set zero boxes to remain zero
@@ -123,7 +125,7 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOCONFIG) -> Tensor:
 
 
 def yolo_target_to_xyxy(
-    target: Tensor, config: YOLOCONFIG, threshold=0.5
+    target: Tensor, config: YOLOConfig, threshold=0.5
 ) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
     """
     target: Tensor of shape (N, S, S, 5 + C) or (S, S, 5 + C)
@@ -165,8 +167,8 @@ def yolo_target_to_xyxy(
 
     # Extract valid bboxes, labels, and confidences
     valid_bboxes = bboxes[center_batch, center_row, center_col]
-    valid_labels = (
-        torch.argmax(target[center_batch, center_row, center_col, :C], dim=-1) + 1
+    valid_labels = torch.argmax(
+        target[center_batch, center_row, center_col, :C], dim=-1
     )
     valid_confidences = target[center_batch, center_row, center_col, C]
 
@@ -193,7 +195,7 @@ def yolo_target_to_xyxy(
 
 
 def yolo_output_to_xyxy(
-    output: Tensor, config: YOLOCONFIG, threshold=0.5
+    output: Tensor, config: YOLOConfig, threshold=0.5
 ) -> Tuple[BoundingBoxes, Tensor, Tensor]:
     """
     output: Tensor of shape (N, S, S, B * 5 + C)
@@ -231,7 +233,7 @@ def yolo_output_to_xyxy(
     return bboxes, labels, confidences
 
 
-def yolo_resp_bbox(output, target, config: YOLOCONFIG):
+def yolo_resp_bbox(output, target, config: YOLOConfig):
     S = config.S
     B = config.B
     batch_size = output.size(0)

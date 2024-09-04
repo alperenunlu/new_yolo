@@ -6,7 +6,7 @@ from yolo_viz_utils import draw_yolo_grid
 from torch import Tensor
 from torchmetrics.detection import MeanAveragePrecision
 from typing import Tuple, Optional
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 from torch.utils.tensorboard import SummaryWriter
 
 
@@ -21,7 +21,7 @@ def log_progress(
     global_step: int,
     batch_idx: int,
     prefix: str,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
     lr: Optional[float] = None,
 ) -> None:
     pred_boxes = [
@@ -80,7 +80,7 @@ def save_checkpoint(
     optimizer: torch.optim.Optimizer,
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     epoch: int,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
     map_value: float,
     map50: float,
     metric_compute: dict,

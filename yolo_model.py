@@ -1,6 +1,6 @@
 from torch import nn
 from torchvision.models import resnet34, resnet50
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 
 class Block(nn.Module):
@@ -28,7 +28,7 @@ class Block(nn.Module):
 class DetectionHead(nn.Module):
     """The layers added on for detection as described in the paper."""
 
-    def __init__(self, in_channels, config: YOLOCONFIG):
+    def __init__(self, in_channels, config: YOLOConfig):
         super().__init__()
         self.S = config.S
         B = config.B
@@ -41,21 +41,17 @@ class DetectionHead(nn.Module):
             Block(in_channels, inner_channels, 3, 1, 1),
             Block(inner_channels, inner_channels, 3, stride, 1),
             Block(inner_channels, inner_channels, 3, 1, 1),
-            Block(inner_channels, inner_channels, 3, 1, 1),
-            nn.Flatten(),
-            nn.Linear(inner_channels * self.S * self.S, 4096),
-            nn.LeakyReLU(inplace=True),
-            nn.Linear(4096, self.S * self.S * self.depth),
+            Block(inner_channels, self.depth, 3, 1, 1),
         )
 
     def forward(self, x):
-        return self.model(x).view(-1, self.S, self.S, self.depth)
+        return self.model(x).permute(0, 2, 3, 1).contiguous()
 
 
 class YOLOv1ResNet(nn.Module):
     def __init__(
         self,
-        config: YOLOCONFIG,
+        config: YOLOConfig,
         mode="detection",
     ):
         backbone = config.MODEL

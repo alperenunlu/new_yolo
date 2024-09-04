@@ -7,7 +7,7 @@ B: 2
 C: 20
 
 VOC_DETECTION_CATEGORIES:
-  - "__background__"
+  # - "__background__"
   - "aeroplane"
   - "bicycle"
   - "bird"

@@ -1,7 +1,7 @@
 import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import OneCycleLR
+from torch.optim.lr_scheduler import StepLR
 
 import argparse
 from config_parser import load_config
@@ -35,19 +35,14 @@ if __name__ == "__main__":
     model = YOLOv1ResNet(config).to(device)
     criterion = YOLOLoss(config).to(device)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = OneCycleLR(
-        optimizer,
-        0.001,
-        steps_per_epoch=len(train_loader) // (config.BATCH_SIZE // config.SUBDIVISION),
-        epochs=config.NUM_EPOCHS,
-        pct_start=0.5,
-    )
+    scheduler = StepLR(optimizer, step_size=50*len(train_loader), gamma=0.1)
+    start_epoch = 0
     if args.checkpoint:
         model, optimizer, scheduler, start_epoch = load_checkpoint(
             model, optimizer, scheduler, args.checkpoint
         )
     writer = SummaryWriter()
-    for epoch in range(config.NUM_EPOCHS):
+    for epoch in range(start_epoch, config.EPOCHS):
         # map_value, map50, metric_compute, running_loss / (batch_idx + 1)
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
             model=model,
@@ -60,16 +55,14 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
-        valid_map, valid_map50, valid_metric_compute, valid_loss = (
-            valid_one_epoch(
-                model=model,
-                loader=valid_loader,
-                criterion=criterion,
-                device=device,
-                writer=writer,
-                epoch=epoch,
-                config=config,
-            )
+        valid_map, valid_map50, valid_metric_compute, valid_loss = valid_one_epoch(
+            model=model,
+            loader=valid_loader,
+            criterion=criterion,
+            device=device,
+            writer=writer,
+            epoch=epoch,
+            config=config,
         )
 
         save_checkpoint(

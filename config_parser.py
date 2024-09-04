@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class YOLOCONFIG:
+class YOLOConfig:
     S: int
     B: int
     C: int
@@ -25,9 +25,9 @@ class YOLOCONFIG:
     WEIGHT_DECAY: float
 
 
-def load_config(path: str) -> YOLOCONFIG:
+def load_config(path: str) -> YOLOConfig:
     config = yaml.safe_load(open(path, "r"))
-    return YOLOCONFIG(**config)
+    return YOLOConfig(**config)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ from torchmetrics.detection import MeanAveragePrecision
 from yolo_train_utils import log_progress, log_epoch_summary
 
 from typing import Tuple
-from config_parser import YOLOCONFIG
+from config_parser import YOLOConfig
 
 
 def train_one_epoch(
@@ -16,7 +16,7 @@ def train_one_epoch(
     device: torch.device,
     writer: torch.utils.tensorboard.SummaryWriter,
     epoch: int,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.train()
     running_loss = running_iou = 0.0
@@ -79,7 +79,7 @@ def valid_one_epoch(
     device: torch.device,
     writer: torch.utils.tensorboard.SummaryWriter,
     epoch: int,
-    config: YOLOCONFIG,
+    config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.eval()
     running_loss = running_iou = 0.0
