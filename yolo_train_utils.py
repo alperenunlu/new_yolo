@@ -38,14 +38,8 @@ def log_progress(
             *yolo_target_to_xyxy(targets, config=config, threshold=threshold)
         )
     ]
-    metric_forward = metric(pred_boxes, target_boxes)
 
-    if batch_idx % 50 == 0:
-        writer.add_image(
-            f"{prefix}/SampleDetections",
-            draw_yolo_grid(inputs, outputs, targets, config, threshold=threshold),
-            global_step,
-        )
+    metric_forward = metric(pred_boxes, target_boxes)
 
     writer.add_scalar(f"{prefix}/Loss", loss.item(), global_step)
     writer.add_scalar(f"{prefix}/IoU", avg_iou.item(), global_step)
@@ -58,6 +52,13 @@ def log_progress(
 
     if lr is not None:
         writer.add_scalar(f"{prefix}/Learning Rate", lr, global_step)
+
+    if batch_idx % 50 == 0:
+        writer.add_image(
+            f"{prefix}/SampleDetections",
+            draw_yolo_grid(inputs, outputs, targets, config, threshold=threshold),
+            global_step,
+        )
 
 
 def log_epoch_summary(
