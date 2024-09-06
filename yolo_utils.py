@@ -196,7 +196,7 @@ def yolo_target_to_xyxy(
 
 def yolo_output_to_xyxy(
     output: Tensor, config: YOLOConfig, threshold=0.5
-) -> Tuple[BoundingBoxes, Tensor, Tensor]:
+) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
     """
     output: Tensor of shape (N, S, S, B * 5 + C)
 
@@ -233,7 +233,9 @@ def yolo_output_to_xyxy(
     return bboxes, labels, confidences
 
 
-def yolo_resp_bbox(output, target, config: YOLOConfig):
+def yolo_resp_bbox(
+    output: Tensor, target: Tensor, config: YOLOConfig
+) -> Tuple[Tensor, Tensor]:
     S = config.S
     B = config.B
     batch_size = output.size(0)

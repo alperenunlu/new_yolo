@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import yaml
 from dataclasses import dataclass
@@ -9,7 +9,7 @@ class YOLOConfig:
     S: int
     B: int
     C: int
-    IMAGE_SIZE: int
+    IMAGE_SIZE: Tuple[int, int]
     VOC_DETECTION_CATEGORIES: List[str]
     L_coord: float
     L_obj: float

@@ -28,11 +28,15 @@ def log_progress(
 
     pred_boxes = [
         {"boxes": box, "labels": label, "scores": confidence}
-        for box, label, confidence in zip(*yolo_output_to_xyxy(outputs, config=config, threshold=threshold))
+        for box, label, confidence in zip(
+            *yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
+        )
     ]
     target_boxes = [
         {"boxes": box, "labels": label}
-        for box, label, _ in zip(*yolo_target_to_xyxy(targets, config=config, threshold=threshold))
+        for box, label, _ in zip(
+            *yolo_target_to_xyxy(targets, config=config, threshold=threshold)
+        )
     ]
     metric_forward = metric(pred_boxes, target_boxes)
 
@@ -88,7 +92,7 @@ def save_checkpoint(
     metric_compute: dict,
     loss: float,
     path: str,
-):
+) -> None:
     torch.save(
         {
             "model": model.state_dict(),
@@ -107,7 +111,9 @@ def save_checkpoint(
 
 def load_checkpoint(
     model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler, path: str
-):
+) -> Tuple[
+    torch.nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler, int
+]:
     checkpoint = torch.load(path)
     model.load_state_dict(checkpoint["model"])
     optimizer.load_state_dict(checkpoint["optimizer"])
