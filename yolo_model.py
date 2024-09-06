@@ -2,6 +2,8 @@ from torch import nn
 from torchvision.models import resnet34, resnet50
 from config_parser import YOLOConfig
 
+from torch import Tensor
+
 
 class Block(nn.Module):
     def __init__(
@@ -21,7 +23,7 @@ class Block(nn.Module):
             nn.LeakyReLU(inplace=True),
         )
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return self.layer(x)
 
 
@@ -31,11 +33,11 @@ class DetectionHead(nn.Module):
     def __init__(self, in_channels, config: YOLOConfig):
         super().__init__()
         self.S = config.S
-        B = config.B
-        C = config.C
+        self.B = config.B
+        self.C = config.C
 
         inner_channels = 1024
-        self.depth = 5 * B + C
+        self.depth = 5 * self.B + self.C
         stride = 2 if self.S == 7 else 1 if self.S == 14 else 0
         self.model = nn.Sequential(
             Block(in_channels, inner_channels, 3, 1, 1),
@@ -44,8 +46,10 @@ class DetectionHead(nn.Module):
             Block(inner_channels, self.depth, 3, 1, 1),
         )
 
-    def forward(self, x):
-        return self.model(x).permute(0, 2, 3, 1).contiguous()
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.model(x).permute(0, 2, 3, 1)
+        x[..., self.C :].sigmoid_()
+        return x
 
 
 class YOLOv1ResNet(nn.Module):
@@ -68,7 +72,7 @@ class YOLOv1ResNet(nn.Module):
             self.detection_head = DetectionHead(in_features, config)
             self.backbone.get_submodule("7").requires_grad_(True)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         if self.mode == "detection":
             x = self.backbone(x)
             x = self.detection_head(x)
