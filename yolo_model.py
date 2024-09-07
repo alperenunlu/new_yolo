@@ -47,9 +47,7 @@ class DetectionHead(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        x = self.model(x).permute(0, 2, 3, 1)
-        x[..., self.C :].sigmoid_()
-        return x
+        return self.model(x).permute(0, 2, 3, 1)
 
 
 class YOLOv1ResNet(nn.Module):
@@ -62,22 +60,21 @@ class YOLOv1ResNet(nn.Module):
         super().__init__()
         self.mode = mode
         if backbone == "resnet34":
-            self.resnet = resnet34(weights="DEFAULT")
+            self.backbone = resnet34(weights="DEFAULT")
         elif backbone == "resnet50":
-            self.resnet = resnet50(weights="DEFAULT")
+            self.backbone = resnet50(weights="DEFAULT")
 
-        in_features = self.resnet.fc.in_features
+        in_features = self.backbone.fc.in_features
         if mode == "detection":
-            self.backbone = nn.Sequential(*list(self.resnet.children())[:-2])
+            self.backbone = nn.Sequential(*list(self.backbone.children())[:-2])
             self.detection_head = DetectionHead(in_features, config)
-            self.backbone.get_submodule("7").requires_grad_(True)
 
     def forward(self, x: Tensor) -> Tensor:
         if self.mode == "detection":
             x = self.backbone(x)
             x = self.detection_head(x)
         elif self.mode == "classification":
-            x = self.resnet(x)
+            x = self.backbone(x)
         return x
 
 
