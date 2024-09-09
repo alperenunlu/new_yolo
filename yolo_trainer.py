@@ -25,42 +25,45 @@ def train_one_epoch(
 
     loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
-        global_step = epoch * len(loader) + batch_idx
+        with accelerator.accumulate(model):
+            global_step = epoch * len(loader) + batch_idx
 
-        outputs = model(inputs)
-        loss, avg_iou = criterion(outputs, targets)
+            outputs = model(inputs)
+            loss, avg_iou = criterion(outputs, targets)
 
-        optimizer.zero_grad()
-        # loss.backward()
-        accelerator.backward(loss)
-        optimizer.step()
-        if scheduler:
-            scheduler.step()
+            optimizer.zero_grad()
+            # loss.backward()
+            accelerator.backward(loss)
+            optimizer.step()
+            if scheduler:
+                scheduler.step()
 
-        running_loss += loss.item()
-        running_iou += avg_iou.item()
+            loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
+            outputs, targets = accelerator.gather_for_metrics((outputs, targets))
+            running_loss += loss.item()
+            running_iou += avg_iou.item()
 
-        log_progress(
-            writer=writer,
-            metric=metric,
-            inputs=inputs,
-            outputs=outputs,
-            targets=targets,
-            loss=loss,
-            avg_iou=avg_iou,
-            global_step=global_step,
-            batch_idx=batch_idx,
-            prefix="Training",
-            config=config,
-            lr=optimizer.param_groups[0]["lr"],
-        )
+            log_progress(
+                writer=writer,
+                metric=metric,
+                inputs=inputs,
+                outputs=outputs,
+                targets=targets,
+                loss=loss,
+                avg_iou=avg_iou,
+                global_step=global_step,
+                batch_idx=batch_idx,
+                prefix="Training",
+                config=config,
+                lr=optimizer.param_groups[0]["lr"],
+            )
 
-        loop.set_postfix(
-            {
-                "loss": f"{running_loss / (batch_idx + 1):.4f}",
-                "iou": f"{running_iou / (batch_idx + 1):.4f}",
-            }
-        )
+            loop.set_postfix(
+                {
+                    "loss": f"{running_loss / (batch_idx + 1):.4f}",
+                    "iou": f"{running_iou / (batch_idx + 1):.4f}",
+                }
+            )
 
     return log_epoch_summary(
         writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Training"
@@ -72,6 +75,7 @@ def valid_one_epoch(
     model: torch.nn.Module,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
+    accelerator: Accelerator,
     metric: MeanAveragePrecision,
     writer: torch.utils.tensorboard.SummaryWriter,
     epoch: int,
@@ -87,6 +91,8 @@ def valid_one_epoch(
         outputs = model(inputs)
         loss, avg_iou = criterion(outputs, targets)
 
+        loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
+        outputs, targets = accelerator.gather_for_metrics((outputs, targets))
         running_loss += loss.item()
         running_iou += avg_iou.item()
 

@@ -15,8 +15,6 @@ from yolo_loss import YOLOLoss
 from yolo_trainer import train_one_epoch, valid_one_epoch
 from yolo_train_utils import save_checkpoint, load_checkpoint
 
-accelerator = Accelerator()
-
 parser = argparse.ArgumentParser()
 parser.add_argument(
     "--config", "-c", type=str, default="yolo_config.yaml", help="Path to config file"
@@ -34,17 +32,19 @@ if __name__ == "__main__":
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     scheduler = StepLR(optimizer, step_size=2 * len(train_loader), gamma=0.9)
     metric = MeanAveragePrecision()
-    start_epoch = 0
-    if args.checkpoint:
-        model, optimizer, scheduler, start_epoch = load_checkpoint(
-            model, optimizer, scheduler, args.checkpoint
-        )
-        start_epoch += 1
+
+    accelerator = Accelerator(gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES)
+
     model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
         accelerator.prepare(
             model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
         )
     )
+
+    start_epoch = 0
+    if args.checkpoint:
+        start_epoch = load_checkpoint(accelerator, args.checkpoint) + 1
+
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
@@ -63,6 +63,7 @@ if __name__ == "__main__":
             model=model,
             loader=valid_loader,
             criterion=criterion,
+            accelerator=accelerator,
             metric=metric,
             writer=writer,
             epoch=epoch,
@@ -70,9 +71,7 @@ if __name__ == "__main__":
         )
 
         save_checkpoint(
-            model=model,
-            optimizer=optimizer,
-            scheduler=scheduler,
+            accelerator=accelerator,
             epoch=epoch,
             config=config,
             map_value=valid_map,

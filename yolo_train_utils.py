@@ -2,6 +2,8 @@ import torch
 
 from torchvision.ops import box_iou
 
+from accelerate import Accelerator
+
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
 from yolo_viz_utils import draw_yolo_grid_from_dict
 
@@ -103,9 +105,7 @@ def log_epoch_summary(
 
 
 def save_checkpoint(
-    model: torch.nn.Module,
-    optimizer: torch.optim.Optimizer,
-    scheduler: torch.optim.lr_scheduler.LRScheduler,
+    accelerator: Accelerator,
     epoch: int,
     config: YOLOConfig,
     map_value: float,
@@ -116,9 +116,6 @@ def save_checkpoint(
 ) -> None:
     torch.save(
         {
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "scheduler": scheduler.state_dict(),
             "epoch": epoch,
             "config": config,
             "mAP": map_value,
@@ -128,15 +125,14 @@ def save_checkpoint(
         },
         path,
     )
+    accelerator.save_state(path)
 
 
 def load_checkpoint(
-    model: torch.nn.Module, optimizer: torch.optim.Optimizer, scheduler, path: str
-) -> Tuple[
-    torch.nn.Module, torch.optim.Optimizer, torch.optim.lr_scheduler._LRScheduler, int
-]:
-    checkpoint = torch.load(path)
-    model.load_state_dict(checkpoint["model"])
-    optimizer.load_state_dict(checkpoint["optimizer"])
-    scheduler.load_state_dict(checkpoint["scheduler"])
-    return model, optimizer, scheduler, checkpoint["epoch"]
+        accelerator: Accelerator,
+        path: str
+) -> int:
+    start_epoch = torch.load(path)["epoch"]
+    accelerator.load_state(path)
+    return start_epoch
+

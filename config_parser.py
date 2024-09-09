@@ -20,6 +20,7 @@ class YOLOConfig:
 
     BATCH_SIZE: int
     NUM_EPOCHS: int
+    ACCUMULATE_GRAD_BATCHES: int
 
     LEARNING_RATE: float
     WEIGHT_DECAY: float
