@@ -1,7 +1,9 @@
 import torch
 
+from torchvision.ops import box_iou
+
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
-from yolo_viz_utils import draw_yolo_grid
+from yolo_viz_utils import draw_yolo_grid_from_dict
 
 from torch import Tensor
 from torchmetrics.detection import MeanAveragePrecision
@@ -24,22 +26,32 @@ def log_progress(
     config: YOLOConfig,
     lr: Optional[float] = None,
 ) -> None:
-    threshold = 0.9
+    threshold = 0.5
 
-    pred_boxes = [
-        {"boxes": box, "labels": label, "scores": confidence}
-        for box, label, confidence in zip(
-            *yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
-        )
-    ]
-    target_boxes = [
-        {"boxes": box, "labels": label}
-        for box, label, _ in zip(
-            *yolo_target_to_xyxy(targets, config=config, threshold=threshold)
-        )
-    ]
+    pred_bboxes, labels, confidences = yolo_output_to_xyxy(
+        outputs, config=config, threshold=threshold
+    )
+    target_bboxes, target_labels, _ = yolo_target_to_xyxy(
+        targets, config=config, threshold=threshold
+    )
 
-    metric_forward = metric(pred_boxes, target_boxes)
+    prediction_boxes_list = []
+    target_boxes_list = []
+    for pred_bbox, label, confidence, target_bbox, target_label in zip(
+        pred_bboxes, labels, confidences, target_bboxes, target_labels
+    ):
+        scores = box_iou(pred_bbox, target_bbox).max(dim=1).values
+        prediction_boxes_list.append(
+            {
+                "boxes": pred_bbox,
+                "labels": label,
+                "scores": scores,
+                "confidences": confidence,
+            }
+        )
+        target_boxes_list.append({"boxes": target_bbox, "labels": target_label})
+
+    metric_forward = metric(prediction_boxes_list, target_boxes_list)
 
     writer.add_scalar(f"{prefix}/Loss", loss.item(), global_step)
     writer.add_scalar(f"{prefix}/IoU", avg_iou.item(), global_step)
@@ -49,14 +61,22 @@ def log_progress(
     writer.add_scalar(f"{prefix}/mAP_small", metric_forward["map_small"], global_step)
     writer.add_scalar(f"{prefix}/mAP_medium", metric_forward["map_medium"], global_step)
     writer.add_scalar(f"{prefix}/mAP_large", metric_forward["map_large"], global_step)
+    writer.add_scalar(f"{prefix}/mAR-1", metric_forward["mar_1"], global_step)
+    writer.add_scalar(f"{prefix}/mAR-10", metric_forward["mar_10"], global_step)
+    writer.add_scalar(f"{prefix}/mAR-100", metric_forward["mar_100"], global_step)
 
     if lr is not None:
         writer.add_scalar(f"{prefix}/Learning Rate", lr, global_step)
 
-    if batch_idx % 50 == 0:
+    if batch_idx % 25 == 0:
         writer.add_image(
             f"{prefix}/SampleDetections",
-            draw_yolo_grid(inputs, outputs, targets, config, threshold=threshold),
+            draw_yolo_grid_from_dict(
+                images=inputs,
+                outputs_list=prediction_boxes_list,
+                targets_list=target_boxes_list,
+                config=config,
+            ),
             global_step,
         )
 

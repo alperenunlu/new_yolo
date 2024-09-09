@@ -45,8 +45,8 @@ class YOLOLoss(nn.Module):
         target_boxes = target[..., C:].view(-1, S, S, 5)
 
         best_bbox, ious = yolo_resp_bbox(
-            output_boxes[..., 1:].detach(),
-            target_boxes[..., 1:].detach(),
+            output_boxes[..., 1:],
+            target_boxes[..., 1:],
             self.config,
         )
 

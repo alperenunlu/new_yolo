@@ -2,6 +2,9 @@ import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR
+from torchmetrics.detection import MeanAveragePrecision
+from accelerate import Accelerator
+
 
 import argparse
 from config_parser import load_config
@@ -12,13 +15,7 @@ from yolo_loss import YOLOLoss
 from yolo_trainer import train_one_epoch, valid_one_epoch
 from yolo_train_utils import save_checkpoint, load_checkpoint
 
-device = torch.device(
-    "cuda"
-    if torch.cuda.is_available()
-    else "mps"
-    if torch.backends.mps.is_available()
-    else "cpu"
-)
+accelerator = Accelerator()
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -32,16 +29,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     config = load_config(args.config)
     train_loader, valid_loader = get_dataloaders(config)
-    model = YOLOv1ResNet(config).to(device)
-    criterion = YOLOLoss(config).to(device)
+    model = YOLOv1ResNet(config)
+    criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=2*len(train_loader), gamma=0.9)
+    scheduler = StepLR(optimizer, step_size=2 * len(train_loader), gamma=0.9)
+    metric = MeanAveragePrecision()
     start_epoch = 0
     if args.checkpoint:
         model, optimizer, scheduler, start_epoch = load_checkpoint(
             model, optimizer, scheduler, args.checkpoint
         )
         start_epoch += 1
+    model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
+        accelerator.prepare(
+            model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
+        )
+    )
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
@@ -50,7 +53,8 @@ if __name__ == "__main__":
             loader=train_loader,
             criterion=criterion,
             scheduler=scheduler,
-            device=device,
+            accelerator=accelerator,
+            metric=metric,
             writer=writer,
             epoch=epoch,
             config=config,
@@ -59,7 +63,7 @@ if __name__ == "__main__":
             model=model,
             loader=valid_loader,
             criterion=criterion,
-            device=device,
+            metric=metric,
             writer=writer,
             epoch=epoch,
             config=config,

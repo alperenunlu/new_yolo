@@ -37,18 +37,16 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
 
     train_loader = DataLoader(
         train_datasets_concat,
-        batch_size=config.SUBDIVISION,
+        batch_size=config.BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_fn,
-        num_workers=config.NUM_WORKERS,
     )
 
     valid_loader = DataLoader(
         valid_datasets,
-        batch_size=config.SUBDIVISION,
+        batch_size=config.BATCH_SIZE,
         shuffle=False,
         collate_fn=collate_fn,
-        num_workers=config.NUM_WORKERS,
     )
 
     return train_loader, valid_loader

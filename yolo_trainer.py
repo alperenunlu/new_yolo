@@ -5,6 +5,7 @@ from yolo_train_utils import log_progress, log_epoch_summary
 
 from typing import Tuple
 from config_parser import YOLOConfig
+from accelerate import Accelerator
 
 
 def train_one_epoch(
@@ -13,29 +14,28 @@ def train_one_epoch(
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
     scheduler: torch.optim.lr_scheduler._LRScheduler,
-    device: torch.device,
+    accelerator: Accelerator,
+    metric: MeanAveragePrecision,
     writer: torch.utils.tensorboard.SummaryWriter,
     epoch: int,
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.train()
     running_loss = running_iou = 0.0
-    metric = MeanAveragePrecision().to(device)
 
     loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
-        inputs, targets = inputs.to(device), targets.to(device)
 
         outputs = model(inputs)
         loss, avg_iou = criterion(outputs, targets)
-        loss.backward()
 
-        if (batch_idx + 1) % (config.BATCH_SIZE // config.SUBDIVISION) == 0:
-            optimizer.step()
-            if scheduler:
-                scheduler.step()
-            optimizer.zero_grad()
+        optimizer.zero_grad()
+        # loss.backward()
+        accelerator.backward(loss)
+        optimizer.step()
+        if scheduler:
+            scheduler.step()
 
         running_loss += loss.item()
         running_iou += avg_iou.item()
@@ -62,10 +62,6 @@ def train_one_epoch(
             }
         )
 
-    if (batch_idx + 1) % (config.BATCH_SIZE // config.SUBDIVISION) != 0:
-        optimizer.step()
-        optimizer.zero_grad()
-
     return log_epoch_summary(
         writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Training"
     )
@@ -76,19 +72,17 @@ def valid_one_epoch(
     model: torch.nn.Module,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
-    device: torch.device,
+    metric: MeanAveragePrecision,
     writer: torch.utils.tensorboard.SummaryWriter,
     epoch: int,
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.eval()
     running_loss = running_iou = 0.0
-    metric = MeanAveragePrecision().to(device)
 
     loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
-        inputs, targets = inputs.to(device), targets.to(device)
 
         outputs = model(inputs)
         loss, avg_iou = criterion(outputs, targets)

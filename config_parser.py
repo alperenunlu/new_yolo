@@ -19,8 +19,6 @@ class YOLOConfig:
     MODEL: str
 
     BATCH_SIZE: int
-    SUBDIVISION: int
-    NUM_WORKERS: int
     NUM_EPOCHS: int
 
     LEARNING_RATE: float
