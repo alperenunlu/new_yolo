@@ -173,7 +173,7 @@ def yolo_target_to_xyxy(
     valid_confidences = target[center_batch, center_row, center_col, C]
 
     # Split the results by batch
-    boxes_list = [
+    bboxes = [
         BoundingBoxes(
             valid_bboxes[mask].ceil(),
             format=BoundingBoxFormat.XYXY,
@@ -182,16 +182,33 @@ def yolo_target_to_xyxy(
         for mask in valid_mask
     ]
 
-    labels_list = [valid_labels[mask] for mask in valid_mask]
-    confidences_list = [valid_confidences[mask] for mask in valid_mask]
+    bboxes = [valid_labels[mask] for mask in valid_mask]
+    bboxes = [valid_confidences[mask] for mask in valid_mask]
+
+    bboxes = [
+        dict(
+            boxes=BoundingBoxes(
+                valid_bboxes[mask].ceil(),
+                format=BoundingBoxFormat.XYXY,
+                canvas_size=canvas_size,
+            ),
+            labels=valid_labels[mask],
+            confidences=valid_confidences[mask],
+        )
+        for mask in valid_mask
+    ]
 
     for i in range(batch_size):
-        keep = nms(boxes_list[i], confidences_list[i], iou_threshold=0.5)
-        boxes_list[i] = boxes_list[i][keep]
-        labels_list[i] = labels_list[i][keep]
-        confidences_list[i] = confidences_list[i][keep]
+        keep = nms(
+            bboxes[i]["boxes"],
+            bboxes[i]["confidences"],
+            iou_threshold=0.5,
+        )
+        bboxes[i]["boxes"] = bboxes[i]["boxes"][keep]
+        bboxes[i]["labels"] = bboxes[i]["labels"][keep]
+        bboxes[i]["confidences"] = bboxes[i]["confidences"][keep]
 
-    return boxes_list, labels_list, confidences_list
+    return bboxes
 
 
 def yolo_output_to_xyxy(
@@ -226,11 +243,9 @@ def yolo_output_to_xyxy(
     ]
     output_best_boxes = torch.cat([classes, best_boxes], dim=-1)
 
-    bboxes, labels, confidences = yolo_target_to_xyxy(
-        output_best_boxes, config, threshold
-    )
+    bboxes = yolo_target_to_xyxy(output_best_boxes, config, threshold)
 
-    return bboxes, labels, confidences
+    return bboxes
 
 
 def yolo_resp_bbox(

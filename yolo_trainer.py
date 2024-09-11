@@ -39,11 +39,11 @@ def train_one_epoch(
                 scheduler.step()
 
             loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
-            outputs, targets = accelerator.gather_for_metrics((outputs, targets))
-            running_loss += loss.item()
-            running_iou += avg_iou.item()
+            running_loss += loss.mean().item()
+            running_iou += avg_iou.mean().item()
 
             log_progress(
+                accelerator=accelerator,
                 writer=writer,
                 metric=metric,
                 inputs=inputs,
@@ -92,11 +92,11 @@ def valid_one_epoch(
         loss, avg_iou = criterion(outputs, targets)
 
         loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
-        outputs, targets = accelerator.gather_for_metrics((outputs, targets))
-        running_loss += loss.item()
-        running_iou += avg_iou.item()
+        running_loss += loss.mean().item()
+        running_iou += avg_iou.mean().item()
 
         log_progress(
+            accelerator=accelerator,
             writer=writer,
             metric=metric,
             inputs=inputs,

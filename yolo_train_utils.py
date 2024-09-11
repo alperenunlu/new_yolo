@@ -1,20 +1,22 @@
+from itertools import chain
+
 import torch
 
 from torchvision.ops import box_iou
 
-from accelerate import Accelerator
-
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
 from yolo_viz_utils import draw_yolo_grid_from_dict
 
+from typing import Tuple, Optional
 from torch import Tensor
 from torchmetrics.detection import MeanAveragePrecision
-from typing import Tuple, Optional
-from config_parser import YOLOConfig
 from torch.utils.tensorboard import SummaryWriter
+from config_parser import YOLOConfig
+from accelerate import Accelerator
 
 
 def log_progress(
+    accelerator: Accelerator,
     writer: SummaryWriter,
     metric: MeanAveragePrecision,
     inputs: Tensor,
@@ -30,53 +32,49 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
-    pred_bboxes, labels, confidences = yolo_output_to_xyxy(
-        outputs, config=config, threshold=threshold
-    )
-    target_bboxes, target_labels, _ = yolo_target_to_xyxy(
+    pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
+    target_bboxes_list = yolo_target_to_xyxy(
         targets, config=config, threshold=threshold
     )
 
-    prediction_boxes_list = []
-    target_boxes_list = []
-    for pred_bbox, label, confidence, target_bbox, target_label in zip(
-        pred_bboxes, labels, confidences, target_bboxes, target_labels
-    ):
-        scores = box_iou(pred_bbox, target_bbox).max(dim=1).values
-        prediction_boxes_list.append(
-            {
-                "boxes": pred_bbox,
-                "labels": label,
-                "scores": scores,
-                "confidences": confidence,
-            }
-        )
-        target_boxes_list.append({"boxes": target_bbox, "labels": target_label})
+    for pred_bboxes, target_bboxes in zip(pred_bboxes_list, target_bboxes_list):
+        scores = box_iou(pred_bboxes["boxes"], target_bboxes["boxes"]).max(dim=1).values
+        pred_bboxes["scores"] = scores
 
-    metric_forward = metric(prediction_boxes_list, target_boxes_list)
+    pred_bboxes_list, target_bboxes_list = accelerator.gather_for_metrics(
+        (pred_bboxes_list, target_bboxes_list)
+    )
 
-    writer.add_scalar(f"{prefix}/Loss", loss.item(), global_step)
-    writer.add_scalar(f"{prefix}/IoU", avg_iou.item(), global_step)
-    writer.add_scalar(f"{prefix}/mAP", metric_forward["map"], global_step)
-    writer.add_scalar(f"{prefix}/mAP50", metric_forward["map_50"], global_step)
-    writer.add_scalar(f"{prefix}/mAP75", metric_forward["map_75"], global_step)
-    writer.add_scalar(f"{prefix}/mAP_small", metric_forward["map_small"], global_step)
-    writer.add_scalar(f"{prefix}/mAP_medium", metric_forward["map_medium"], global_step)
-    writer.add_scalar(f"{prefix}/mAP_large", metric_forward["map_large"], global_step)
-    writer.add_scalar(f"{prefix}/mAR-1", metric_forward["mar_1"], global_step)
-    writer.add_scalar(f"{prefix}/mAR-10", metric_forward["mar_10"], global_step)
-    writer.add_scalar(f"{prefix}/mAR-100", metric_forward["mar_100"], global_step)
+    if isinstance(type(pred_bboxes_list), list):
+        pred_bboxes_list = list(chain(*pred_bboxes_list))
+        target_bboxes_list = list(chain(*target_bboxes_list))
 
-    if lr is not None:
-        writer.add_scalar(f"{prefix}/Learning Rate", lr, global_step)
+    metric_forward = metric(pred_bboxes_list, target_bboxes_list)
+
+    metrics = {
+        "Loss": loss.item(),
+        "IoU": avg_iou.item(),
+        "mAP": metric_forward["map"],
+        "mAP50": metric_forward["map_50"],
+        "mAP75": metric_forward["map_75"],
+        "mAP_small": metric_forward["map_small"],
+        "mAP_medium": metric_forward["map_medium"],
+        "mAP_large": metric_forward["map_large"],
+        "mAR_1": metric_forward["mar_1"],
+        "mAR_10": metric_forward["mar_10"],
+        "mAR_100": metric_forward["mar_100"],
+    }
+
+    for name, value in metrics.items():
+        writer.add_scalar(f"{prefix}/{name}", value, global_step)
 
     if batch_idx % 25 == 0:
         writer.add_image(
             f"{prefix}/SampleDetections",
             draw_yolo_grid_from_dict(
                 images=inputs,
-                outputs_list=prediction_boxes_list,
-                targets_list=target_boxes_list,
+                outputs_list=pred_bboxes_list,
+                targets_list=target_bboxes_list,
                 config=config,
             ),
             global_step,
@@ -96,10 +94,20 @@ def log_epoch_summary(
     map_value = metric_compute["map"]
     map50 = metric_compute["map_50"]
 
-    writer.add_scalar(f"{prefix}/mAP", map_value, epoch)
-    writer.add_scalar(f"{prefix}/mAP50", map50, epoch)
-    writer.add_scalar(f"{prefix}/Loss", running_loss / (batch_idx + 1), epoch)
-    writer.add_scalar(f"{prefix}/IoU", running_iou / (batch_idx + 1), epoch)
+    # writer.add_scalar(f"{prefix}/mAP", map_value, epoch)
+    # writer.add_scalar(f"{prefix}/mAP50", map50, epoch)
+    # writer.add_scalar(f"{prefix}/Loss", running_loss / (batch_idx + 1), epoch)
+    # writer.add_scalar(f"{prefix}/IoU", running_iou / (batch_idx + 1), epoch)
+
+    metrics = {
+        "mAP": map_value,
+        "mAP50": map50,
+        "Loss": running_loss / (batch_idx + 1),
+        "IoU": running_iou / (batch_idx + 1),
+    }
+
+    for name, value in metrics.items():
+        writer.add_scalar(f"{prefix}/{name}", value, epoch)
 
     return map_value, map50, metric_compute, running_loss / (batch_idx + 1)
 
@@ -128,11 +136,7 @@ def save_checkpoint(
     accelerator.save_state(path)
 
 
-def load_checkpoint(
-        accelerator: Accelerator,
-        path: str
-) -> int:
+def load_checkpoint(accelerator: Accelerator, path: str) -> int:
     start_epoch = torch.load(path)["epoch"]
     accelerator.load_state(path)
     return start_epoch
-

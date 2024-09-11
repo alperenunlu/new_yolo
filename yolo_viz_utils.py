@@ -50,10 +50,12 @@ def draw_yolo(
     )(image)
 
     if mode == "output":
-        boxes, labels, _ = yolo_output_to_xyxy(target, config, threshold)
+        bboxes = yolo_output_to_xyxy(target, config, threshold)[0]
     elif mode == "target":
-        boxes, labels, _ = yolo_target_to_xyxy(target, config, threshold)
-    boxes, labels = boxes[0], labels[0]
+        bboxes = yolo_target_to_xyxy(target, config, threshold)[0]
+
+    boxes, labels = bboxes["boxes"], bboxes["labels"]
+
     if boxes.numel() == 0:
         return image.detach().cpu()
     image_with_bbox = draw_bounding_boxes(
