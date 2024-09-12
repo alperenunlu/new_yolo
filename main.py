@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
@@ -20,7 +22,7 @@ parser.add_argument(
     "--config", "-c", type=str, default="yolo_config.yaml", help="Path to config file"
 )
 parser.add_argument(
-    "--checkpoint", "-cp", type=str, default=None, help="Path to checkpoint file"
+    "--checkpoint", "-cp", type=Path, default=None, help="Path to checkpoint file"
 )
 
 if __name__ == "__main__":
@@ -33,7 +35,9 @@ if __name__ == "__main__":
     scheduler = StepLR(optimizer, step_size=2 * len(train_loader), gamma=0.9)
     metric = MeanAveragePrecision()
 
-    accelerator = Accelerator(gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES)
+    accelerator = Accelerator(
+        gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES
+    )
 
     model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
         accelerator.prepare(
@@ -78,7 +82,7 @@ if __name__ == "__main__":
             map50=valid_map50,
             metric_compute=valid_metric_compute,
             loss=valid_loss,
-            path=f"checkpoints/yolo_v1_resnet_{epoch}.pth",
+            path=Path(f"checkpoints/yolo_v1_resnet_{epoch}"),
         )
 
     writer.close()

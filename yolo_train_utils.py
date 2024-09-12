@@ -11,6 +11,7 @@ from torchmetrics.detection import MeanAveragePrecision
 from torch.utils.tensorboard import SummaryWriter
 from config_parser import YOLOConfig
 from accelerate import Accelerator
+from pathlib import Path
 
 
 def log_progress(
@@ -30,7 +31,7 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
-    inputs, outputs, targets = accelerator.gather_for_metrics((inputs, outputs, targets))
+    # inputs, outputs, targets = accelerator.gather_for_metrics((inputs, outputs, targets))
 
     pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(
@@ -44,9 +45,8 @@ def log_progress(
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
 
     metrics = {
-        "LearningRate": lr,
-        "Loss": loss.mean().item(),
-        "IoU": avg_iou.mean().item(),
+        "Loss": loss,
+        "IoU": avg_iou,
         "mAP": metric_forward["map"],
         "mAP50": metric_forward["map_50"],
         "mAP75": metric_forward["map_75"],
@@ -57,9 +57,10 @@ def log_progress(
         "mAR_10": metric_forward["mar_10"],
         "mAR_100": metric_forward["mar_100"],
     }
+    metrics = accelerator.gather_for_metrics(metrics)
 
     for name, value in metrics.items():
-        writer.add_scalar(f"{prefix}/{name}", value, global_step)
+        writer.add_scalar(f"{prefix}/{name}", value.mean(), global_step)
 
     if batch_idx % 25 == 0:
         writer.add_image(
@@ -75,6 +76,7 @@ def log_progress(
 
 
 def log_epoch_summary(
+    accelerator: Accelerator,
     writer: SummaryWriter,
     metric: MeanAveragePrecision,
     running_loss: float,
@@ -84,8 +86,10 @@ def log_epoch_summary(
     prefix: str,
 ) -> Tuple[float, float, dict, float]:
     metric_compute = metric.compute()
-    map_value = metric_compute["map"]
-    map50 = metric_compute["map_50"]
+    metric_compute = accelerator.gather_for_metrics(metric_compute)
+
+    map_value = metric_compute["map"].mean().item()
+    map50 = metric_compute["map_50"].mean().item()
 
     metrics = {
         "mAP": map_value,
@@ -108,8 +112,9 @@ def save_checkpoint(
     map50: float,
     metric_compute: dict,
     loss: float,
-    path: str,
+    path: Path,
 ) -> None:
+    accelerator.save_state(path)
     torch.save(
         {
             "epoch": epoch,
@@ -119,12 +124,11 @@ def save_checkpoint(
             "metric_compute": metric_compute,
             "loss": loss,
         },
-        path,
+        path / "metrics.pt",
     )
-    accelerator.save_state(path)
 
 
-def load_checkpoint(accelerator: Accelerator, path: str) -> int:
-    start_epoch = torch.load(path)["epoch"]
+def load_checkpoint(accelerator: Accelerator, path: Path) -> int:
     accelerator.load_state(path)
+    start_epoch = torch.load(path / "metrics.pt", weights_only=True)["epoch"]
     return start_epoch

@@ -13,7 +13,7 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
-    scheduler: torch.optim.lr_scheduler._LRScheduler,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
     accelerator: Accelerator,
     metric: MeanAveragePrecision,
     writer: torch.utils.tensorboard.SummaryWriter,
@@ -65,9 +65,18 @@ def train_one_epoch(
                 }
             )
 
-    return log_epoch_summary(
-        writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Training"
+    summary = log_epoch_summary(
+        accelerator,
+        writer,
+        metric,
+        running_loss,
+        running_iou,
+        batch_idx,
+        epoch,
+        "Epoch/Training",
     )
+
+    return summary
 
 
 @torch.no_grad()
@@ -117,6 +126,15 @@ def valid_one_epoch(
             }
         )
 
-    return log_epoch_summary(
-        writer, metric, running_loss, running_iou, batch_idx, epoch, "Epoch/Valid"
+    summary = log_epoch_summary(
+        accelerator,
+        writer,
+        metric,
+        running_loss,
+        running_iou,
+        batch_idx,
+        epoch,
+        "Epoch/Training",
     )
+
+    return summary

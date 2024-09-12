@@ -3,7 +3,7 @@ import torch.nn.functional as F
 
 from torchvision.ops import box_convert, box_iou, nms
 
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Union
 from torchvision.tv_tensors import BoundingBoxes, BoundingBoxFormat
 from torch import Tensor
 from config_parser import YOLOConfig
@@ -126,7 +126,7 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOConfig) -> Tensor:
 
 def yolo_target_to_xyxy(
     target: Tensor, config: YOLOConfig, threshold=0.5
-) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
+) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
     """
     target: Tensor of shape (N, S, S, 5 + C) or (S, S, 5 + C)
 
@@ -200,7 +200,7 @@ def yolo_target_to_xyxy(
 
 def yolo_output_to_xyxy(
     output: Tensor, config: YOLOConfig, threshold=0.5
-) -> Tuple[List[BoundingBoxes], List[Tensor], List[Tensor]]:
+) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
     """
     output: Tensor of shape (N, S, S, B * 5 + C)
 

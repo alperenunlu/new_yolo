@@ -1,6 +1,6 @@
 from torchvision.datasets import VOCDetection
 from torchvision.datasets import wrap_dataset_for_transforms_v2
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data import ConcatDataset
 from voc_utils import get_transforms_func, collate_fn
 
@@ -15,7 +15,7 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
                 root="./data",
                 year=year,
                 image_set=split,
-                download=True,
+                download=False,
                 transforms=get_transforms_func(config, "train"),
             )
         )
@@ -28,12 +28,12 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
             root="./data",
             year="2007",
             image_set="test",
-            download=True,
+            download=False,
             transforms=get_transforms_func(config, "valid"),
         )
     )
 
-    train_datasets_concat = ConcatDataset(train_datasets)
+    train_datasets_concat: Dataset = ConcatDataset(train_datasets)
 
     train_loader = DataLoader(
         train_datasets_concat,

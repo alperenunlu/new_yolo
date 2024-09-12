@@ -1,12 +1,14 @@
 import torch
 
 from torchvision.transforms import v2
+
 from torchvision.utils import draw_bounding_boxes, make_grid
 
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
 
-from typing import List
+from typing import List, Union
 from torch import Tensor
+from PIL.Image import Image
 from config_parser import YOLOConfig
 
 COLORS = [
@@ -41,7 +43,7 @@ def draw_yolo(
     threshold=0.5,
     mode="output",
     pil=True,
-) -> Tensor:
+) -> Union[Tensor, Image]:
     assert image.dim() == 3 and target.dim() == 3, "Only one sample"
 
     image = v2.Normalize(
@@ -80,7 +82,7 @@ def draw_yolo_batch(
     threshold=0.5,
     mode="output",
     pil=True,
-) -> Tensor:
+) -> Union[Tensor, List[Image]]:
     assert images.dim() == 4 and targets.dim() == 4, "Input must be batched"
     assert images.size(0) == targets.size(0), "Batch size mismatch"
 
@@ -95,6 +97,7 @@ def draw_yolo_batch(
         )
         for image, target in zip(images, targets)
     ]
+
     if not pil:
         images_with_bbox = torch.stack(images_with_bbox)
 
@@ -136,7 +139,7 @@ def draw_yolo_from_dict(
     bboxes: dict,
     config: YOLOConfig,
     pil=True,
-) -> Tensor:
+) -> Union[Tensor, Image]:
     assert image.dim() == 3, "Only one sample"
 
     image = v2.Normalize(
