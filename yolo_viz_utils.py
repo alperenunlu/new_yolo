@@ -64,8 +64,8 @@ def draw_yolo(
         labels=[config.VOC_DETECTION_CATEGORIES[i].upper() for i in labels],
         colors=[COLORS[i] for i in labels],
         width=3,
-        font="Courier",
-        font_size=25,
+        # font="Courier",
+        # font_size=25,
     )
     if pil:
         image_with_bbox = v2.ToPILImage()(image_with_bbox)
@@ -162,8 +162,8 @@ def draw_yolo_from_dict(
         labels=labels_with_conf,
         colors=[COLORS[i] for i in labels],
         width=3,
-        font="Courier",
-        font_size=25,
+        # font="Courier",
+        # font_size=25,
     )
     if pil:
         image_with_bbox = v2.ToPILImage()(image_with_bbox)

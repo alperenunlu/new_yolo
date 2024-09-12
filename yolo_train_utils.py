@@ -1,5 +1,3 @@
-from itertools import chain
-
 import torch
 
 from torchvision.ops import box_iou
@@ -32,6 +30,8 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
+    inputs, outputs, targets = accelerator.gather_for_metrics((inputs, outputs, targets))
+
     pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(
         targets, config=config, threshold=threshold
@@ -41,19 +41,12 @@ def log_progress(
         scores = box_iou(pred_bboxes["boxes"], target_bboxes["boxes"]).max(dim=1).values
         pred_bboxes["scores"] = scores
 
-    pred_bboxes_list, target_bboxes_list = accelerator.gather_for_metrics(
-        (pred_bboxes_list, target_bboxes_list)
-    )
-
-    if isinstance(type(pred_bboxes_list), list):
-        pred_bboxes_list = list(chain(*pred_bboxes_list))
-        target_bboxes_list = list(chain(*target_bboxes_list))
-
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
 
     metrics = {
-        "Loss": loss.item(),
-        "IoU": avg_iou.item(),
+        "LearningRate": lr,
+        "Loss": loss.mean().item(),
+        "IoU": avg_iou.mean().item(),
         "mAP": metric_forward["map"],
         "mAP50": metric_forward["map_50"],
         "mAP75": metric_forward["map_75"],
@@ -93,11 +86,6 @@ def log_epoch_summary(
     metric_compute = metric.compute()
     map_value = metric_compute["map"]
     map50 = metric_compute["map_50"]
-
-    # writer.add_scalar(f"{prefix}/mAP", map_value, epoch)
-    # writer.add_scalar(f"{prefix}/mAP50", map50, epoch)
-    # writer.add_scalar(f"{prefix}/Loss", running_loss / (batch_idx + 1), epoch)
-    # writer.add_scalar(f"{prefix}/IoU", running_iou / (batch_idx + 1), epoch)
 
     metrics = {
         "mAP": map_value,

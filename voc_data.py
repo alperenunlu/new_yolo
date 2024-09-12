@@ -15,7 +15,7 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
                 root="./data",
                 year=year,
                 image_set=split,
-                download=False,
+                download=True,
                 transforms=get_transforms_func(config, "train"),
             )
         )
@@ -28,7 +28,7 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
             root="./data",
             year="2007",
             image_set="test",
-            download=False,
+            download=True,
             transforms=get_transforms_func(config, "valid"),
         )
     )

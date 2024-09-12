@@ -172,19 +172,6 @@ def yolo_target_to_xyxy(
     )
     valid_confidences = target[center_batch, center_row, center_col, C]
 
-    # Split the results by batch
-    bboxes = [
-        BoundingBoxes(
-            valid_bboxes[mask].ceil(),
-            format=BoundingBoxFormat.XYXY,
-            canvas_size=canvas_size,
-        )
-        for mask in valid_mask
-    ]
-
-    bboxes = [valid_labels[mask] for mask in valid_mask]
-    bboxes = [valid_confidences[mask] for mask in valid_mask]
-
     bboxes = [
         dict(
             boxes=BoundingBoxes(
@@ -304,7 +291,7 @@ if __name__ == "__main__":
         target = xyxy_to_yolo_target(boxes, torch.tensor([19]), config)
 
         print(target.shape)
-        print(target[*torch.where(target[..., 20] == 1), :])
+        # print(target[*torch.where(target[..., 20] == 1), :])
         print(yolo_target_to_xyxy(target, config))
 
     def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
