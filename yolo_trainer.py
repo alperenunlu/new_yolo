@@ -1,5 +1,5 @@
 import torch
-from tqdm import tqdm
+from accelerate.utils.tqdm import tqdm
 from torchmetrics.detection import MeanAveragePrecision
 from yolo_train_utils import log_progress, log_epoch_summary
 
@@ -23,7 +23,7 @@ def train_one_epoch(
     model.train()
     running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}")
+    loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}", leave=False)
     for batch_idx, (inputs, targets) in enumerate(loop):
         with accelerator.accumulate(model):
             global_step = epoch * len(loader) + batch_idx
@@ -53,7 +53,7 @@ def train_one_epoch(
                 avg_iou=avg_iou,
                 global_step=global_step,
                 batch_idx=batch_idx,
-                prefix="Training",
+                prefix="Train",
                 config=config,
                 lr=optimizer.param_groups[0]["lr"],
             )
@@ -73,7 +73,7 @@ def train_one_epoch(
         running_iou,
         batch_idx,
         epoch,
-        "Epoch/Training",
+        "Epoch/Train",
     )
 
     return summary
@@ -93,7 +93,7 @@ def valid_one_epoch(
     model.eval()
     running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}")
+    loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}", leave=False)
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
 
@@ -134,7 +134,7 @@ def valid_one_epoch(
         running_iou,
         batch_idx,
         epoch,
-        "Epoch/Training",
+        "Epoch/Valid",
     )
 
     return summary

@@ -13,7 +13,7 @@ from config_parser import YOLOConfig
 from accelerate import Accelerator
 from pathlib import Path
 
-
+@torch.no_grad()
 def log_progress(
     accelerator: Accelerator,
     writer: SummaryWriter,
@@ -31,7 +31,6 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
-    # inputs, outputs, targets = accelerator.gather_for_metrics((inputs, outputs, targets))
 
     pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(
@@ -43,6 +42,9 @@ def log_progress(
         pred_bboxes["scores"] = scores
 
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
+
+    for key, value in metric_forward.items():
+        metric_forward[key] = accelerator.gather(value.to(accelerator.device))
 
     metrics = {
         "Loss": loss,
@@ -57,7 +59,6 @@ def log_progress(
         "mAR_10": metric_forward["mar_10"],
         "mAR_100": metric_forward["mar_100"],
     }
-    metrics = accelerator.gather_for_metrics(metrics)
 
     for name, value in metrics.items():
         writer.add_scalar(f"{prefix}/{name}", value.mean(), global_step)
@@ -86,7 +87,9 @@ def log_epoch_summary(
     prefix: str,
 ) -> Tuple[float, float, dict, float]:
     metric_compute = metric.compute()
-    metric_compute = accelerator.gather_for_metrics(metric_compute)
+
+    for key, value in metric_compute.items():
+        metric_compute[key] = accelerator.gather(value.to(accelerator.device))
 
     map_value = metric_compute["map"].mean().item()
     map50 = metric_compute["map_50"].mean().item()
