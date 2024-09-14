@@ -2,7 +2,7 @@ import torch
 from torchvision.transforms import v2
 from torchvision.tv_tensors import TVTensor
 
-from typing import Tuple, Dict, Any, Union, Callable
+from typing import List, Tuple, Dict, Any, Union, Callable
 from torch import Tensor
 from config_parser import YOLOConfig
 
@@ -58,7 +58,7 @@ def get_transforms_func(config: YOLOConfig, mode: str) -> Callable[..., sample_t
     return TransformWrapper(transforms, config)
 
 
-def collate_fn(batch: sample_type) -> Tuple[Tensor, Tensor]:
+def collate_fn(batch: List[sample_type]) -> Tuple[Tensor, Tensor]:
     images, annotations = zip(*batch)
     images = torch.stack(images)
     targets = torch.stack([annotation["target"] for annotation in annotations])

@@ -13,6 +13,7 @@ from config_parser import YOLOConfig
 from accelerate import Accelerator
 from pathlib import Path
 
+
 @torch.no_grad()
 def log_progress(
     accelerator: Accelerator,
@@ -30,7 +31,6 @@ def log_progress(
     lr: Optional[float] = None,
 ) -> None:
     threshold = 0.5
-
 
     pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(

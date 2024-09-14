@@ -40,9 +40,9 @@ def draw_yolo(
     image: Tensor,
     target: Tensor,
     config: YOLOConfig,
-    threshold=0.5,
-    mode="output",
-    pil=True,
+    threshold: float = 0.5,
+    mode: str = "output",
+    pil: bool = True,
 ) -> Union[Tensor, Image]:
     assert image.dim() == 3 and target.dim() == 3, "Only one sample"
 
@@ -60,6 +60,7 @@ def draw_yolo(
 
     if boxes.numel() == 0:
         return image.detach().cpu()
+
     image_with_bbox = draw_bounding_boxes(
         image,
         boxes,
@@ -69,6 +70,7 @@ def draw_yolo(
         # font="Courier",
         # font_size=25,
     )
+
     if pil:
         image_with_bbox = v2.ToPILImage()(image_with_bbox)
 
@@ -79,9 +81,9 @@ def draw_yolo_batch(
     images: Tensor,
     targets: Tensor,
     config: YOLOConfig,
-    threshold=0.5,
-    mode="output",
-    pil=True,
+    threshold: float = 0.5,
+    mode: str = "output",
+    pil: bool = True,
 ) -> Union[Tensor, List[Image]]:
     assert images.dim() == 4 and targets.dim() == 4, "Input must be batched"
     assert images.size(0) == targets.size(0), "Batch size mismatch"
@@ -93,7 +95,7 @@ def draw_yolo_batch(
             threshold=threshold,
             config=config,
             mode=mode,
-            pil=False,
+            pil=pil,
         )
         for image, target in zip(images, targets)
     ]
@@ -105,7 +107,11 @@ def draw_yolo_batch(
 
 
 def draw_yolo_grid(
-    images: Tensor, outputs: Tensor, targets: Tensor, config: YOLOConfig, threshold=0.5
+    images: Tensor,
+    outputs: Tensor,
+    targets: Tensor,
+    config: YOLOConfig,
+    threshold=0.5,
 ) -> Tensor:
     assert (
         images.dim() == 4 and outputs.dim() == 4 and targets.dim() == 4
@@ -187,7 +193,7 @@ def draw_yolo_batch_from_dict(
             image=image,
             bboxes=bboxes,
             config=config,
-            pil=False,
+            pil=pil,
         )
         for image, bboxes in zip(images, bboxes_list)
     ]

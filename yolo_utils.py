@@ -148,31 +148,27 @@ def yolo_target_to_xyxy(
 
     if target.dim() == 3:
         target = target.unsqueeze(0)
-
     batch_size = target.size(0)
+
     bboxes = yolo_multi_bbox_to_xyxy(target[..., C + 1 :].unsqueeze(-2), config)
 
-    # Get indices of cells with confidence above threshold
     center_batch, center_row, center_col = torch.where(target[..., C] > threshold)
 
-    # Create a tensor of batch indices
     batch_indices = (
         torch.arange(batch_size, device=target.device)
         .unsqueeze(-1)
         .expand(-1, center_batch.size(0))
     )
 
-    # Mask for valid detections
     valid_mask = center_batch.unsqueeze(0) == batch_indices
 
-    # Extract valid bboxes, labels, and confidences
     valid_bboxes = bboxes[center_batch, center_row, center_col]
     valid_labels = torch.argmax(
         target[center_batch, center_row, center_col, :C], dim=-1
     )
     valid_confidences = target[center_batch, center_row, center_col, C]
 
-    bboxes = [
+    bboxes_list = [
         dict(
             boxes=BoundingBoxes(
                 valid_bboxes[mask].ceil(),
@@ -187,15 +183,15 @@ def yolo_target_to_xyxy(
 
     for i in range(batch_size):
         keep = nms(
-            bboxes[i]["boxes"],
-            bboxes[i]["confidences"],
+            bboxes_list[i]["boxes"],
+            bboxes_list[i]["confidences"],
             iou_threshold=0.5,
         )
-        bboxes[i]["boxes"] = bboxes[i]["boxes"][keep]
-        bboxes[i]["labels"] = bboxes[i]["labels"][keep]
-        bboxes[i]["confidences"] = bboxes[i]["confidences"][keep]
+        bboxes_list[i]["boxes"] = bboxes_list[i]["boxes"][keep]
+        bboxes_list[i]["labels"] = bboxes_list[i]["labels"][keep]
+        bboxes_list[i]["confidences"] = bboxes_list[i]["confidences"][keep]
 
-    return bboxes
+    return bboxes_list
 
 
 def yolo_output_to_xyxy(

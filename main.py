@@ -1,6 +1,5 @@
 from pathlib import Path
 
-import torch
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import StepLR

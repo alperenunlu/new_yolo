@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from typing import Tuple
 from torch import Tensor
 
 from config_parser import YOLOConfig
@@ -14,7 +15,7 @@ class YOLOLoss(nn.Module):
         super().__init__()
         self.config = config
 
-    def forward(self, output: Tensor, target: Tensor) -> Tensor:
+    def forward(self, output: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
         """
         output: (batch_size, S, S, B * 5 + C)
         target: (batch_size, S, S, 5 + C)

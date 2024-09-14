@@ -76,6 +76,8 @@ def train_one_epoch(
         "Epoch/Train",
     )
 
+    metric.reset()
+
     return summary
 
 
@@ -93,7 +95,9 @@ def valid_one_epoch(
     model.eval()
     running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}", leave=False)
+    loop = tqdm(
+        loader, total=len(loader), desc=f"Validating Epoch {epoch}", leave=False
+    )
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
 
@@ -136,5 +140,7 @@ def valid_one_epoch(
         epoch,
         "Epoch/Valid",
     )
+
+    metric.reset()
 
     return summary
