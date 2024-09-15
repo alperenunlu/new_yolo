@@ -38,6 +38,10 @@ if __name__ == "__main__":
         gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES,
     )
 
+    start_epoch = 0
+    if args.checkpoint:
+        start_epoch = load_checkpoint(model, args.checkpoint) + 1
+
     model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
         accelerator.prepare(
             model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
@@ -45,10 +49,6 @@ if __name__ == "__main__":
     )
 
     metric = metric.to(accelerator.device)
-
-    start_epoch = 0
-    if args.checkpoint:
-        start_epoch = load_checkpoint(accelerator, args.checkpoint) + 1
 
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
@@ -76,6 +76,7 @@ if __name__ == "__main__":
         )
 
         save_checkpoint(
+            model=model,
             accelerator=accelerator,
             epoch=epoch,
             config=config,

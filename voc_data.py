@@ -40,7 +40,7 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
         batch_size=config.BATCH_SIZE,
         shuffle=True,
         collate_fn=collate_fn,
-        num_workers=2,
+        num_workers=config.NUM_WORKERS,
     )
 
     valid_loader = DataLoader(
@@ -48,7 +48,7 @@ def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
         batch_size=config.BATCH_SIZE,
         shuffle=False,
         collate_fn=collate_fn,
-        num_workers=2,
+        num_workers=config.NUM_WORKERS,
     )
 
     return train_loader, valid_loader

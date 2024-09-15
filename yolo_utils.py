@@ -181,15 +181,15 @@ def yolo_target_to_xyxy(
         for mask in valid_mask
     ]
 
-    for i in range(batch_size):
-        keep = nms(
-            bboxes_list[i]["boxes"],
-            bboxes_list[i]["confidences"],
-            iou_threshold=0.5,
-        )
-        bboxes_list[i]["boxes"] = bboxes_list[i]["boxes"][keep]
-        bboxes_list[i]["labels"] = bboxes_list[i]["labels"][keep]
-        bboxes_list[i]["confidences"] = bboxes_list[i]["confidences"][keep]
+    # for i in range(batch_size):
+    #     keep = nms(
+    #         bboxes_list[i]["boxes"],
+    #         bboxes_list[i]["confidences"],
+    #         iou_threshold=0.5,
+    #     )
+    #     bboxes_list[i]["boxes"] = bboxes_list[i]["boxes"][keep]
+    #     bboxes_list[i]["labels"] = bboxes_list[i]["labels"][keep]
+    #     bboxes_list[i]["confidences"] = bboxes_list[i]["confidences"][keep]
 
     return bboxes_list
 

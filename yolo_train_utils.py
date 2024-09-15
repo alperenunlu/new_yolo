@@ -2,6 +2,8 @@ import torch
 
 from torchvision.ops import box_iou
 
+from safetensors import safe_open
+
 from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
 from yolo_viz_utils import draw_yolo_grid_from_dict
 
@@ -108,6 +110,7 @@ def log_epoch_summary(
 
 
 def save_checkpoint(
+    model: torch.nn.Module,
     accelerator: Accelerator,
     epoch: int,
     config: YOLOConfig,
@@ -117,11 +120,16 @@ def save_checkpoint(
     loss: float,
     path: Path,
 ) -> None:
-    accelerator.save_state(path)
+    accelerator.wait_for_everyone()
+    accelerator.save_model(
+        accelerator.unwrap_model(model),
+        path,
+    )
+
     torch.save(
         {
             "epoch": epoch,
-            "config": config,
+            "config": str(config),
             "mAP": map_value,
             "mAP50": map50,
             "metric_compute": metric_compute,
@@ -131,7 +139,14 @@ def save_checkpoint(
     )
 
 
-def load_checkpoint(accelerator: Accelerator, path: Path) -> int:
-    accelerator.load_state(path)
-    start_epoch = torch.load(path / "metrics.pt", map_location="cpu", weights_only=True)["epoch"]
+def load_checkpoint(
+    model: torch.nn.Module,
+    path: Path,
+) -> int:
+    with safe_open(path / "model.safetensors", framework="pt") as f:
+        model.load_state_dict({k: f.get_tensor(k) for k in f.keys()})
+
+    start_epoch = torch.load(
+        path / "metrics.pt", map_location="cpu", weights_only=True
+    )["epoch"]
     return start_epoch
