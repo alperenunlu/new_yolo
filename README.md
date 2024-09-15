@@ -10,7 +10,7 @@ from safetensors import safe_open
 
 from yolo_model import YOLOv1ResNet
 from yolo_loss import YOLOLoss
-from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
+from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy, filter_boxes
 from voc_data import get_dataloaders
 from config_parser import load_config
 
@@ -39,6 +39,8 @@ def evaluate_model(model, dataloader, criterion, metric, config, device):
 
         pred_bboxes_list = yolo_output_to_xyxy(outputs, config)
         target_bboxes_list = yolo_target_to_xyxy(targets, config)
+
+        pred_bboxes_list = filter_boxes(pred_bboxes_list)
 
         for pred_bboxes, target_bboxes in zip(pred_bboxes_list, target_bboxes_list):
             scores = (

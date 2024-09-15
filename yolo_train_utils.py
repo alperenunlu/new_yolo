@@ -4,7 +4,7 @@ from torchvision.ops import box_iou
 
 from safetensors import safe_open
 
-from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
+from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy
 from yolo_viz_utils import draw_yolo_grid_from_dict
 
 from typing import Tuple, Optional
@@ -34,7 +34,7 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
-    pred_bboxes_list = yolo_output_to_xyxy(outputs, config=config, threshold=threshold)
+    pred_bboxes_list = yolo_pred_to_xyxy(outputs, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(
         targets, config=config, threshold=threshold
     )

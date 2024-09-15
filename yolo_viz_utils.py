@@ -4,7 +4,7 @@ from torchvision.transforms import v2
 
 from torchvision.utils import draw_bounding_boxes, make_grid
 
-from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy
+from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy
 
 from typing import List, Union
 from torch import Tensor
@@ -52,7 +52,7 @@ def draw_yolo(
     )(image)
 
     if mode == "output":
-        bboxes = yolo_output_to_xyxy(target, config, threshold)[0]
+        bboxes = yolo_pred_to_xyxy(target, config, threshold)[0]
     elif mode == "target":
         bboxes = yolo_target_to_xyxy(target, config, threshold)[0]
 

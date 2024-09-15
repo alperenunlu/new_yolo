@@ -124,6 +124,28 @@ def yolo_multi_bbox_to_xyxy(bbox: Tensor, config: YOLOConfig) -> Tensor:
     return xyxy
 
 
+def filter_boxes(
+    bboxes_list: List[Dict[str, Union[Tensor, BoundingBoxes]]], threshold=0.5
+) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
+    """
+    bbox: List of dictionaries with keys "boxes", "labels", "confidences"
+
+    Returns:
+        filtered_bbox: List of dictionaries with keys "boxes", "labels", "confidences
+    """
+    for sample in bboxes_list:
+        keep = nms(
+            sample["boxes"],
+            sample["confidences"],
+            iou_threshold=0.5,
+        )
+        sample["boxes"] = sample["boxes"][keep]
+        sample["labels"] = sample["labels"][keep]
+        sample["confidences"] = sample["confidences"][keep]
+
+    return bboxes_list
+
+
 def yolo_target_to_xyxy(
     target: Tensor, config: YOLOConfig, threshold=0.5
 ) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
@@ -181,20 +203,10 @@ def yolo_target_to_xyxy(
         for mask in valid_mask
     ]
 
-    # for i in range(batch_size):
-    #     keep = nms(
-    #         bboxes_list[i]["boxes"],
-    #         bboxes_list[i]["confidences"],
-    #         iou_threshold=0.5,
-    #     )
-    #     bboxes_list[i]["boxes"] = bboxes_list[i]["boxes"][keep]
-    #     bboxes_list[i]["labels"] = bboxes_list[i]["labels"][keep]
-    #     bboxes_list[i]["confidences"] = bboxes_list[i]["confidences"][keep]
-
     return bboxes_list
 
 
-def yolo_output_to_xyxy(
+def yolo_pred_to_xyxy(
     output: Tensor, config: YOLOConfig, threshold=0.5
 ) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
     """
@@ -317,7 +329,7 @@ if __name__ == "__main__":
     def different_batch_size(b):
         pred, target = random_output_and_target(b)
         try:
-            yolo_output_to_xyxy(pred, config)
+            yolo_pred_to_xyxy(pred, config)
             yolo_target_to_xyxy(target, config)
         except Exception as e:
             print(e)
