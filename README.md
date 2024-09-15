@@ -10,7 +10,7 @@ from safetensors import safe_open
 
 from yolo_model import YOLOv1ResNet
 from yolo_loss import YOLOLoss
-from yolo_utils import yolo_output_to_xyxy, yolo_target_to_xyxy, filter_boxes
+from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy, filter_boxes
 from voc_data import get_dataloaders
 from config_parser import load_config
 
