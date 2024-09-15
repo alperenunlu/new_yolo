@@ -43,8 +43,8 @@ def log_progress(
 
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
 
-    for key, value in metric_forward.items():
-        metric_forward[key] = accelerator.gather(value.to(accelerator.device))
+    # for key, value in metric_forward.items():
+    #     metric_forward[key] = accelerator.gather(value.to(accelerator.device))
 
     metrics = {
         "Loss": loss,
@@ -88,8 +88,8 @@ def log_epoch_summary(
 ) -> Tuple[float, float, dict, float]:
     metric_compute = metric.compute()
 
-    for key, value in metric_compute.items():
-        metric_compute[key] = accelerator.gather(value.to(accelerator.device))
+    # for key, value in metric_compute.items():
+    #     metric_compute[key] = accelerator.gather(value.to(accelerator.device))
 
     map_value = metric_compute["map"].mean().item()
     map50 = metric_compute["map_50"].mean().item()
@@ -133,5 +133,5 @@ def save_checkpoint(
 
 def load_checkpoint(accelerator: Accelerator, path: Path) -> int:
     accelerator.load_state(path)
-    start_epoch = torch.load(path / "metrics.pt", weights_only=True)["epoch"]
+    start_epoch = torch.load(path / "metrics.pt", map_location="cpu", weights_only=True)["epoch"]
     return start_epoch

@@ -32,10 +32,10 @@ if __name__ == "__main__":
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     scheduler = StepLR(optimizer, step_size=2 * len(train_loader), gamma=0.9)
-    metric = MeanAveragePrecision()
+    metric = MeanAveragePrecision(dist_sync_on_step=True)
 
     accelerator = Accelerator(
-        gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES
+        gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES,
     )
 
     model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
@@ -43,6 +43,8 @@ if __name__ == "__main__":
             model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
         )
     )
+
+    metric = metric.to(accelerator.device)
 
     start_epoch = 0
     if args.checkpoint:
