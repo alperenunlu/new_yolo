@@ -43,7 +43,6 @@ def train_one_epoch(
             running_iou += avg_iou.mean().item()
 
             log_progress(
-                accelerator=accelerator,
                 writer=writer,
                 metric=metric,
                 inputs=inputs,
@@ -66,7 +65,6 @@ def train_one_epoch(
             )
 
     summary = log_epoch_summary(
-        accelerator,
         writer,
         metric,
         running_loss,
@@ -109,7 +107,6 @@ def valid_one_epoch(
         running_iou += avg_iou.mean().item()
 
         log_progress(
-            accelerator=accelerator,
             writer=writer,
             metric=metric,
             inputs=inputs,
@@ -131,7 +128,6 @@ def valid_one_epoch(
         )
 
     summary = log_epoch_summary(
-        accelerator,
         writer,
         metric,
         running_loss,

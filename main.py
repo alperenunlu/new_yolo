@@ -31,7 +31,7 @@ if __name__ == "__main__":
     model = YOLOv1ResNet(config)
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=2 * len(train_loader), gamma=0.9)
+    scheduler = StepLR(optimizer, step_size=2, gamma=0.9)
     metric = MeanAveragePrecision(dist_sync_on_step=True)
 
     accelerator = Accelerator(
@@ -40,11 +40,11 @@ if __name__ == "__main__":
 
     start_epoch = 0
     if args.checkpoint:
-        start_epoch = load_checkpoint(model, args.checkpoint) + 1
+        start_epoch = load_checkpoint(model, optimizer, scheduler, args.checkpoint) + 1
 
-    model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
+    model, criterion, optimizer, scheduler, train_loader, valid_loader = (
         accelerator.prepare(
-            model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
+            model, criterion, optimizer, scheduler, train_loader, valid_loader
         )
     )
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             optimizer=optimizer,
             loader=train_loader,
             criterion=criterion,
-            scheduler=scheduler,
+            scheduler=None,
             accelerator=accelerator,
             metric=metric,
             writer=writer,
@@ -74,9 +74,12 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
+        scheduler.step()
 
         save_checkpoint(
             model=model,
+            optimizer=optimizer,
+            scheduler=scheduler,
             accelerator=accelerator,
             epoch=epoch,
             config=config,

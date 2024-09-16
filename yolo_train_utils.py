@@ -18,7 +18,6 @@ from pathlib import Path
 
 @torch.no_grad()
 def log_progress(
-    accelerator: Accelerator,
     writer: SummaryWriter,
     metric: MeanAveragePrecision,
     inputs: Tensor,
@@ -45,9 +44,6 @@ def log_progress(
 
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
 
-    # for key, value in metric_forward.items():
-    #     metric_forward[key] = accelerator.gather(value.to(accelerator.device))
-
     metrics = {
         "Loss": loss,
         "IoU": avg_iou,
@@ -65,6 +61,9 @@ def log_progress(
     for name, value in metrics.items():
         writer.add_scalar(f"{prefix}/{name}", value.mean(), global_step)
 
+    if lr:
+        writer.add_scalar(f"{prefix}/LearningRate", lr, global_step)
+
     if batch_idx % 25 == 0:
         writer.add_image(
             f"{prefix}/SampleDetections",
@@ -79,7 +78,6 @@ def log_progress(
 
 
 def log_epoch_summary(
-    accelerator: Accelerator,
     writer: SummaryWriter,
     metric: MeanAveragePrecision,
     running_loss: float,
@@ -89,9 +87,6 @@ def log_epoch_summary(
     prefix: str,
 ) -> Tuple[float, float, dict, float]:
     metric_compute = metric.compute()
-
-    # for key, value in metric_compute.items():
-    #     metric_compute[key] = accelerator.gather(value.to(accelerator.device))
 
     map_value = metric_compute["map"].mean().item()
     map50 = metric_compute["map_50"].mean().item()
@@ -111,6 +106,8 @@ def log_epoch_summary(
 
 def save_checkpoint(
     model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
     accelerator: Accelerator,
     epoch: int,
     config: YOLOConfig,
@@ -125,6 +122,8 @@ def save_checkpoint(
         accelerator.unwrap_model(model),
         path,
     )
+    accelerator.save(optimizer.state_dict(), path / "optimizer.pt")
+    accelerator.save(scheduler.state_dict(), path / "scheduler.pt")
 
     torch.save(
         {
@@ -141,10 +140,15 @@ def save_checkpoint(
 
 def load_checkpoint(
     model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    scheduler: torch.optim.lr_scheduler.LRScheduler,
     path: Path,
 ) -> int:
     with safe_open(path / "model.safetensors", framework="pt") as f:
         model.load_state_dict({k: f.get_tensor(k) for k in f.keys()})
+
+    optimizer.load_state_dict(torch.load(path / "optimizer.pt", weights_only=True))
+    scheduler.load_state_dict(torch.load(path / "scheduler.pt", weights_only=True))
 
     start_epoch = torch.load(
         path / "metrics.pt", map_location="cpu", weights_only=True
