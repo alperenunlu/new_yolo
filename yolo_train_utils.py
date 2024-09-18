@@ -147,8 +147,12 @@ def load_checkpoint(
     with safe_open(path / "model.safetensors", framework="pt") as f:
         model.load_state_dict({k: f.get_tensor(k) for k in f.keys()})
 
-    optimizer.load_state_dict(torch.load(path / "optimizer.pt", weights_only=True))
-    scheduler.load_state_dict(torch.load(path / "scheduler.pt", weights_only=True))
+    optimizer.load_state_dict(
+        torch.load(path / "optimizer.pt", weights_only=True, map_location="cpu")
+    )
+    scheduler.load_state_dict(
+        torch.load(path / "scheduler.pt", weights_only=True, map_location="cpu")
+    )
 
     start_epoch = torch.load(
         path / "metrics.pt", map_location="cpu", weights_only=True

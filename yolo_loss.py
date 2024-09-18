@@ -2,12 +2,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from yolo_utils import yolo_resp_bbox
+
 from typing import Tuple
 from torch import Tensor
-
 from config_parser import YOLOConfig
-
-from yolo_utils import yolo_resp_bbox
 
 
 class YOLOLoss(nn.Module):
@@ -76,13 +75,18 @@ class YOLOLoss(nn.Module):
         box_loss = self.config.L_coord * (center_loss + wh_loss)
 
         # Object Loss
-        conf_loss = self.config.L_obj * torch.sum(
-            (resp_boxes[obj_mask][..., 0] - target_boxes[obj_mask][..., 0]) ** 2
-        )
+        if self.config.Rescore:
+            conf_loss = self.config.L_obj * torch.sum(
+                (ious[obj_mask].detach() - resp_boxes[obj_mask][..., 0]) ** 2
+            )
+        else:
+            conf_loss = self.config.L_obj * torch.sum(
+                (target_boxes[obj_mask][..., 0] - resp_boxes[obj_mask][..., 0]) ** 2
+            )
 
         # No Object Loss
         noobj_loss = self.config.L_noobj * torch.sum(
-            (resp_boxes[noobj_mask][..., 0] - target_boxes[noobj_mask][..., 0]) ** 2
+            (target_boxes[noobj_mask][..., 0] - resp_boxes[noobj_mask][..., 0]) ** 2
         )
 
         # Class Loss

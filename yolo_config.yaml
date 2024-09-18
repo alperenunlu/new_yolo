@@ -34,6 +34,8 @@ L_obj: 1.0
 L_noobj: 1.0
 L_class: 1.0
 
+Rescore: True
+
 MODEL: "resnet34"
 
 BATCH_SIZE: 64

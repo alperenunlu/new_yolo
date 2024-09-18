@@ -266,16 +266,7 @@ def yolo_resp_bbox(
     zero_batch, zero_i, zero_j = torch.where(ious == 0)
     zero_output = output_coords[zero_batch, zero_i, zero_j]
     zero_target = target_coords[zero_batch, zero_i, zero_j].unsqueeze(1).repeat(1, B, 1)
-    rmse = (
-        F.mse_loss(
-            zero_output,
-            zero_target,
-            reduction="none",
-        )
-        .sum(-1)
-        .sqrt()
-    )
-
+    rmse = (zero_output - zero_target).norm(dim=-1)
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
     return best_bbox, ious

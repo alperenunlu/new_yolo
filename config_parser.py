@@ -16,6 +16,8 @@ class YOLOConfig:
     L_noobj: float
     L_class: float
 
+    Rescore: bool
+
     MODEL: str
 
     BATCH_SIZE: int

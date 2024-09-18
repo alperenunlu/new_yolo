@@ -42,13 +42,11 @@ if __name__ == "__main__":
     if args.checkpoint:
         start_epoch = load_checkpoint(model, optimizer, scheduler, args.checkpoint) + 1
 
-    model, criterion, optimizer, scheduler, train_loader, valid_loader = (
+    model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
         accelerator.prepare(
-            model, criterion, optimizer, scheduler, train_loader, valid_loader
+            model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
         )
     )
-
-    metric = metric.to(accelerator.device)
 
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
