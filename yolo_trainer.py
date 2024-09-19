@@ -3,7 +3,7 @@ from accelerate.utils.tqdm import tqdm
 from torchmetrics.detection import MeanAveragePrecision
 from yolo_train_utils import log_progress, log_epoch_summary
 
-from typing import Tuple
+from typing import Tuple, Optional
 from config_parser import YOLOConfig
 from accelerate import Accelerator
 
@@ -13,7 +13,7 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
-    scheduler: torch.optim.lr_scheduler.LRScheduler,
+    scheduler: Optional[torch.optim.lr_scheduler.LRScheduler],
     accelerator: Accelerator,
     metric: MeanAveragePrecision,
     writer: torch.utils.tensorboard.SummaryWriter,
@@ -28,8 +28,8 @@ def train_one_epoch(
         with accelerator.accumulate(model):
             global_step = epoch * len(loader) + batch_idx
 
-            outputs = model(inputs)
-            loss, avg_iou = criterion(outputs, targets)
+            preds = model(inputs)
+            loss, avg_iou = criterion(preds, targets)
 
             optimizer.zero_grad()
             # loss.backward()
@@ -46,7 +46,7 @@ def train_one_epoch(
                 writer=writer,
                 metric=metric,
                 inputs=inputs,
-                outputs=outputs,
+                preds=preds,
                 targets=targets,
                 loss=loss,
                 avg_iou=avg_iou,
@@ -99,8 +99,8 @@ def valid_one_epoch(
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
 
-        outputs = model(inputs)
-        loss, avg_iou = criterion(outputs, targets)
+        preds = model(inputs)
+        loss, avg_iou = criterion(preds, targets)
 
         loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
         running_loss += loss.mean().item()
@@ -110,7 +110,7 @@ def valid_one_epoch(
             writer=writer,
             metric=metric,
             inputs=inputs,
-            outputs=outputs,
+            preds=preds,
             targets=targets,
             loss=loss,
             avg_iou=avg_iou,

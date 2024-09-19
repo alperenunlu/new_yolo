@@ -14,12 +14,12 @@ class YOLOLoss(nn.Module):
         super().__init__()
         self.config = config
 
-    def forward(self, output: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, pred: Tensor, target: Tensor) -> Tuple[Tensor, Tensor]:
         """
-        output: (batch_size, S, S, B * 5 + C)
+        pred: (batch_size, S, S, B * 5 + C)
         target: (batch_size, S, S, 5 + C)
 
-        output format: [c1, c2, ..., C, B1[conf, cx, cy, w, h], B2[conf, cx, cy, w, h], B]
+        pred format: [c1, c2, ..., C, B1[conf, cx, cy, w, h], B2[conf, cx, cy, w, h], B]
         target format: [c1, c2, ..., C, conf, cx, cy, w, h]
 
         loss =
@@ -36,25 +36,25 @@ class YOLOLoss(nn.Module):
         S = self.config.S
         B = self.config.B
         C = self.config.C
-        BATCH_SIZE = output.size(0)
+        BATCH_SIZE = pred.size(0)
 
         obj_mask = target[..., C] == 1
         noobj_mask = ~obj_mask
 
-        output_boxes = output[..., C:].view(-1, S, S, B, 5)
+        pred_boxes = pred[..., C:].view(-1, S, S, B, 5)
         target_boxes = target[..., C:].view(-1, S, S, 5)
 
         best_bbox, ious = yolo_resp_bbox(
-            output_boxes[..., 1:],
+            pred_boxes[..., 1:],
             target_boxes[..., 1:],
             self.config,
         )
 
-        resp_boxes = output_boxes.gather(
+        resp_boxes = pred_boxes.gather(
             -2,
             best_bbox.unsqueeze(-1)
             .unsqueeze(-1)
-            .expand(-1, -1, -1, -1, output_boxes.size(-1)),
+            .expand(-1, -1, -1, -1, pred_boxes.size(-1)),
         ).squeeze(-2)
 
         resp_coords = resp_boxes[..., 1:]
@@ -91,7 +91,7 @@ class YOLOLoss(nn.Module):
 
         # Class Loss
         class_loss = self.config.L_class * torch.sum(
-            (output[obj_mask][..., :C] - target[obj_mask][..., :C]) ** 2
+            (pred[obj_mask][..., :C] - target[obj_mask][..., :C]) ** 2
         )
 
         loss = box_loss + conf_loss + noobj_loss + class_loss
@@ -104,16 +104,16 @@ class YOLOLoss(nn.Module):
 
 if __name__ == "__main__":
 
-    def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
+    def random_pred_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
         torch.manual_seed(0)
         classes = F.one_hot(
             torch.randint(0, C, (S, S)),
             num_classes=C,
         )
         coords = torch.randn(S, S, B * 5)
-        output = torch.cat((classes, coords), dim=-1)
-        output.unsqueeze_(0)
-        output = torch.cat([output] * BATCH_SIZE, dim=0)
+        pred = torch.cat((classes, coords), dim=-1)
+        pred.unsqueeze_(0)
+        pred = torch.cat([pred] * BATCH_SIZE, dim=0)
 
         target_classes = F.one_hot(
             torch.randint(0, C, (S, S)),
@@ -126,11 +126,11 @@ if __name__ == "__main__":
         target.unsqueeze_(0)
         target = torch.cat([target] * BATCH_SIZE, dim=0)
 
-        return output, target
+        return pred, target
 
     from config_parser import load_config
 
     config = load_config("yolo_config.yaml")
     loss = YOLOLoss(config)
-    output, target = random_output_and_target()
-    print(loss(output, target))
+    pred, target = random_pred_and_target()
+    print(loss(pred, target))

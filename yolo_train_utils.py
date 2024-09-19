@@ -2,7 +2,7 @@ import torch
 
 from torchvision.ops import box_iou
 
-from safetensors import safe_open
+from safetensors.torch import load_model
 
 from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy
 from yolo_viz_utils import draw_yolo_grid_from_dict
@@ -21,7 +21,7 @@ def log_progress(
     writer: SummaryWriter,
     metric: MeanAveragePrecision,
     inputs: Tensor,
-    outputs: Tensor,
+    preds: Tensor,
     targets: Tensor,
     loss: Tensor,
     avg_iou: Tensor,
@@ -33,7 +33,7 @@ def log_progress(
 ) -> None:
     threshold = 0.5
 
-    pred_bboxes_list = yolo_pred_to_xyxy(outputs, config=config, threshold=threshold)
+    pred_bboxes_list = yolo_pred_to_xyxy(preds, config=config, threshold=threshold)
     target_bboxes_list = yolo_target_to_xyxy(
         targets, config=config, threshold=threshold
     )
@@ -69,7 +69,7 @@ def log_progress(
             f"{prefix}/SampleDetections",
             draw_yolo_grid_from_dict(
                 images=inputs,
-                outputs_list=pred_bboxes_list,
+                preds_list=pred_bboxes_list,
                 targets_list=target_bboxes_list,
                 config=config,
             ),
@@ -128,13 +128,17 @@ def save_checkpoint(
     torch.save(
         {
             "epoch": epoch,
-            "config": str(config),
             "mAP": map_value,
             "mAP50": map50,
             "metric_compute": metric_compute,
             "loss": loss,
         },
         path / "metrics.pt",
+    )
+
+    torch.save(
+        config,
+        path / "config.pt",
     )
 
 
@@ -144,8 +148,10 @@ def load_checkpoint(
     scheduler: torch.optim.lr_scheduler.LRScheduler,
     path: Path,
 ) -> int:
-    with safe_open(path / "model.safetensors", framework="pt") as f:
-        model.load_state_dict({k: f.get_tensor(k) for k in f.keys()})
+    missing, unexpected = load_model(model, path / "model.safetensors")
+    assert (
+        not missing and not unexpected
+    ), f"Missing: {missing}, Unexpected: {unexpected}"
 
     optimizer.load_state_dict(
         torch.load(path / "optimizer.pt", weights_only=True, map_location="cpu")

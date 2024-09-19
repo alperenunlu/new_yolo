@@ -27,16 +27,17 @@ parser.add_argument(
 if __name__ == "__main__":
     args = parser.parse_args()
     config = load_config(args.config)
-    train_loader, valid_loader = get_dataloaders(config)
-    model = YOLOv1ResNet(config)
-    criterion = YOLOLoss(config)
-    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=2, gamma=0.9)
-    metric = MeanAveragePrecision(dist_sync_on_step=True)
 
     accelerator = Accelerator(
         gradient_accumulation_steps=config.ACCUMULATE_GRAD_BATCHES,
     )
+
+    train_loader, valid_loader = get_dataloaders(config)
+    model = YOLOv1ResNet(config)
+    criterion = YOLOLoss(config)
+    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+    scheduler = StepLR(optimizer, step_size=3 * accelerator.num_processes, gamma=0.9)
+    metric = MeanAveragePrecision(dist_sync_on_step=True)
 
     start_epoch = 0
     if args.checkpoint:

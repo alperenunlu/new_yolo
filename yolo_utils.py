@@ -137,7 +137,7 @@ def filter_boxes(
         keep = nms(
             sample["boxes"],
             sample["confidences"],
-            iou_threshold=0.5,
+            iou_threshold=threshold,
         )
         sample["boxes"] = sample["boxes"][keep]
         sample["labels"] = sample["labels"][keep]
@@ -207,12 +207,12 @@ def yolo_target_to_xyxy(
 
 
 def yolo_pred_to_xyxy(
-    output: Tensor, config: YOLOConfig, threshold=0.5
+    pred: Tensor, config: YOLOConfig, threshold=0.5
 ) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
     """
-    output: Tensor of shape (N, S, S, B * 5 + C)
+    pred: Tensor of shape (N, S, S, B * 5 + C)
 
-    output format: [c1, c2, ..., C, B1[conf, cx, cy, w, h], B2[conf, cx, cy, w, h], B]
+    pred format: [c1, c2, ..., C, B1[conf, cx, cy, w, h], B2[conf, cx, cy, w, h], B]
 
     Returns:
         boxes: BoundingBoxes object with shape (N, 4) or (4)
@@ -225,37 +225,58 @@ def yolo_pred_to_xyxy(
     C = config.C
     B = config.B
 
-    if output.dim() == 3:
-        output = output.unsqueeze(0)
-    classes = output[..., :C]
-    boxes = output[..., C:].reshape(-1, S, S, B, 5)
-    box_max_indices = boxes[..., 0].argmax(dim=-1, keepdim=True)
-    best_boxes = boxes[
-        torch.arange(boxes.size(0))[:, None, None],
-        torch.arange(S)[None, :, None],
-        torch.arange(S)[None, None, :],
-        box_max_indices.squeeze(-1),
+    if pred.dim() == 3:
+        pred = pred.unsqueeze(0)
+
+    bboxes = yolo_multi_bbox_to_xyxy(
+        pred[..., C:].view(-1, S, S, B, 5)[..., 1:], config
+    )
+
+    center_batch, center_row, center_col, bbox_index = torch.where(
+        pred[..., [C + (i * 5) for i in range(B)]] > threshold
+    )
+
+    batch_indices = (
+        torch.arange(pred.size(0), device=pred.device)
+        .unsqueeze(-1)
+        .expand(-1, center_batch.size(0))
+    )
+
+    valid_mask = center_batch.unsqueeze(0) == batch_indices
+
+    valid_bboxes = bboxes[center_batch, center_row, center_col, bbox_index]
+    valid_labels = torch.argmax(pred[center_batch, center_row, center_col, :C], dim=-1)
+    valid_confidences = pred[center_batch, center_row, center_col, C + bbox_index * 5]
+
+    bboxes_list = [
+        dict(
+            boxes=BoundingBoxes(
+                valid_bboxes[mask].ceil(),
+                format=BoundingBoxFormat.XYXY,
+                canvas_size=config.IMAGE_SIZE,
+            ),
+            labels=valid_labels[mask],
+            confidences=valid_confidences[mask],
+        )
+        for mask in valid_mask
     ]
-    output_best_boxes = torch.cat([classes, best_boxes], dim=-1)
 
-    bboxes = yolo_target_to_xyxy(output_best_boxes, config, threshold)
-
-    return bboxes
+    return bboxes_list
 
 
 def yolo_resp_bbox(
-    output: Tensor, target: Tensor, config: YOLOConfig
+    pred: Tensor, target: Tensor, config: YOLOConfig
 ) -> Tuple[Tensor, Tensor]:
     S = config.S
     B = config.B
-    batch_size = output.size(0)
+    batch_size = pred.size(0)
     size = S * S * batch_size
 
-    output_coords = yolo_multi_bbox_to_xyxy(output, config)
+    pred_coords = yolo_multi_bbox_to_xyxy(pred, config)
     target_coords = yolo_multi_bbox_to_xyxy(target.unsqueeze(-2), config).squeeze(-2)
 
     ious = (
-        box_iou(output_coords.view(-1, 4), target_coords.view(-1, 4))
+        box_iou(pred_coords.view(-1, 4), target_coords.view(-1, 4))
         .view(size, B, size)
         .transpose(1, 2)
     )
@@ -264,9 +285,9 @@ def yolo_resp_bbox(
 
     # if ious is 0 then responsible bbox is the one with the lowest rmse
     zero_batch, zero_i, zero_j = torch.where(ious == 0)
-    zero_output = output_coords[zero_batch, zero_i, zero_j]
+    zero_pred = pred_coords[zero_batch, zero_i, zero_j]
     zero_target = target_coords[zero_batch, zero_i, zero_j].unsqueeze(1).repeat(1, B, 1)
-    rmse = (zero_output - zero_target).norm(dim=-1)
+    rmse = (zero_pred - zero_target).norm(dim=-1)
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
     return best_bbox, ious
@@ -293,32 +314,37 @@ if __name__ == "__main__":
         # print(target[*torch.where(target[..., 20] == 1), :])
         print(yolo_target_to_xyxy(target, config))
 
-    def random_output_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
-        torch.manual_seed(0)
-        classes = F.one_hot(
-            torch.randint(0, C, (S, S)),
-            num_classes=C,
-        )
-        coords = torch.randn(S, S, B * 5)
-        output = torch.cat((classes, coords), dim=-1)
-        output.unsqueeze_(0)
-        output = torch.cat([output] * BATCH_SIZE, dim=0)
+    def random_pred_and_target(BATCH_SIZE=1, S=7, B=2, C=20):
+        def get_pred():
+            classes = F.one_hot(
+                torch.randint(0, C, (S, S)),
+                num_classes=C,
+            )
+            coords = torch.randn(S, S, B * 5)
+            pred = torch.cat((classes, coords), dim=-1)
+            pred.unsqueeze_(0)
+            return pred
 
-        target_classes = F.one_hot(
-            torch.randint(0, C, (S, S)),
-            num_classes=C,
-        )
-        target_coords = torch.cat(
-            (torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1
-        )
-        target = torch.cat((target_classes, target_coords), dim=2)
-        target.unsqueeze_(0)
-        target = torch.cat([target] * BATCH_SIZE, dim=0)
+        pred = torch.cat([get_pred() for _ in range(BATCH_SIZE)], dim=0)
 
-        return output, target
+        def get_target():
+            target_classes = F.one_hot(
+                torch.randint(0, C, (S, S)),
+                num_classes=C,
+            )
+            target_coords = torch.cat(
+                (torch.randint(0, 2, (S, S, 1)), torch.rand(S, S, 4)), dim=-1
+            )
+            target = torch.cat((target_classes, target_coords), dim=2)
+            target.unsqueeze_(0)
+            return target
+
+        target = torch.cat([get_target() for _ in range(BATCH_SIZE)], dim=0)
+
+        return pred, target
 
     def different_batch_size(b):
-        pred, target = random_output_and_target(b)
+        pred, target = random_pred_and_target(b)
         try:
             yolo_pred_to_xyxy(pred, config)
             yolo_target_to_xyxy(target, config)

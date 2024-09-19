@@ -6,7 +6,7 @@ from torchvision.utils import draw_bounding_boxes, make_grid
 
 from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy
 
-from typing import List, Union
+from typing import List
 from torch import Tensor
 from PIL.Image import Image
 from config_parser import YOLOConfig
@@ -41,9 +41,8 @@ def draw_yolo(
     target: Tensor,
     config: YOLOConfig,
     threshold: float = 0.5,
-    mode: str = "output",
-    pil: bool = True,
-) -> Union[Tensor, Image]:
+    mode: str = "pred",
+) -> Tensor:
     assert image.dim() == 3 and target.dim() == 3, "Only one sample"
 
     image = v2.Normalize(
@@ -51,7 +50,7 @@ def draw_yolo(
         std=[1 / 0.229, 1 / 0.224, 1 / 0.225],
     )(image)
 
-    if mode == "output":
+    if mode == "pred":
         bboxes = yolo_pred_to_xyxy(target, config, threshold)[0]
     elif mode == "target":
         bboxes = yolo_target_to_xyxy(target, config, threshold)[0]
@@ -71,9 +70,6 @@ def draw_yolo(
         # font_size=25,
     )
 
-    if pil:
-        image_with_bbox = v2.ToPILImage()(image_with_bbox)
-
     return image_with_bbox
 
 
@@ -82,9 +78,8 @@ def draw_yolo_batch(
     targets: Tensor,
     config: YOLOConfig,
     threshold: float = 0.5,
-    mode: str = "output",
-    pil: bool = True,
-) -> Union[Tensor, List[Image]]:
+    mode: str = "pred",
+) -> Tensor:
     assert images.dim() == 4 and targets.dim() == 4, "Input must be batched"
     assert images.size(0) == targets.size(0), "Batch size mismatch"
 
@@ -95,36 +90,31 @@ def draw_yolo_batch(
             threshold=threshold,
             config=config,
             mode=mode,
-            pil=pil,
         )
         for image, target in zip(images, targets)
     ]
 
-    if not pil:
-        images_with_bbox = torch.stack(images_with_bbox)
-
-    return images_with_bbox
+    return torch.stack(images_with_bbox)
 
 
 def draw_yolo_grid(
     images: Tensor,
-    outputs: Tensor,
+    preds: Tensor,
     targets: Tensor,
     config: YOLOConfig,
     threshold=0.5,
 ) -> Tensor:
     assert (
-        images.dim() == 4 and outputs.dim() == 4 and targets.dim() == 4
+        images.dim() == 4 and preds.dim() == 4 and targets.dim() == 4
     ), "Input must be batched"
-    assert images.size(0) == outputs.size(0) == targets.size(0), "Batch size mismatch"
+    assert images.size(0) == preds.size(0) == targets.size(0), "Batch size mismatch"
 
-    images_with_output = draw_yolo_batch(
+    images_with_preds = draw_yolo_batch(
         images=images,
-        targets=outputs,
+        targets=preds,
         threshold=threshold,
         config=config,
-        mode="output",
-        pil=False,
+        mode="pred",
     )
     images_with_target = draw_yolo_batch(
         images=images,
@@ -132,9 +122,8 @@ def draw_yolo_grid(
         threshold=threshold,
         config=config,
         mode="target",
-        pil=False,
     )
-    images_with_bbox = torch.cat([images_with_output, images_with_target], dim=0)
+    images_with_bbox = torch.cat([images_with_preds, images_with_target], dim=0)
     images_with_bbox = make_grid(images_with_bbox, nrow=images.size(0))
 
     return images_with_bbox
@@ -144,8 +133,7 @@ def draw_yolo_from_dict(
     image: Tensor,
     bboxes: dict,
     config: YOLOConfig,
-    pil=True,
-) -> Union[Tensor, Image]:
+) -> Tensor:
     assert image.dim() == 3, "Only one sample"
 
     image = v2.Normalize(
@@ -166,16 +154,14 @@ def draw_yolo_from_dict(
         return image.detach().cpu()
 
     image_with_bbox = draw_bounding_boxes(
-        image,
+        v2.ToDtype(torch.uint8, scale=True)(image),
         coords,
         labels=labels_with_conf,
         colors=[COLORS[i] for i in labels],
         width=3,
-        # font="Courier",
-        # font_size=25,
+        font="Courier",
+        font_size=25,
     )
-    if pil:
-        image_with_bbox = v2.ToPILImage()(image_with_bbox)
 
     return image_with_bbox
 
@@ -184,7 +170,6 @@ def draw_yolo_batch_from_dict(
     images: Tensor,
     bboxes_list: List[dict],
     config: YOLOConfig,
-    pil=True,
 ) -> Tensor:
     assert len(images) == len(bboxes_list), "Batch size mismatch"
 
@@ -193,40 +178,38 @@ def draw_yolo_batch_from_dict(
             image=image,
             bboxes=bboxes,
             config=config,
-            pil=pil,
         )
         for image, bboxes in zip(images, bboxes_list)
     ]
 
-    if not pil:
-        images_with_bbox = torch.stack(images_with_bbox)
-
-    return images_with_bbox
+    return torch.stack(images_with_bbox)
 
 
 def draw_yolo_grid_from_dict(
     images: Tensor,
-    outputs_list: List[dict],
+    preds_list: List[dict],
     targets_list: List[dict],
     config: YOLOConfig,
 ) -> Tensor:
-    assert len(images) == len(outputs_list) == len(targets_list), "Batch size mismatch"
+    assert len(images) == len(preds_list) == len(targets_list), "Batch size mismatch"
 
-    images_with_output = draw_yolo_batch_from_dict(
+    images_with_preds = draw_yolo_batch_from_dict(
         images=images,
-        bboxes_list=outputs_list,
+        bboxes_list=preds_list,
         config=config,
-        pil=False,
     )
 
     images_with_target = draw_yolo_batch_from_dict(
         images=images,
         bboxes_list=targets_list,
         config=config,
-        pil=False,
     )
 
-    images_with_bbox = torch.cat([images_with_output, images_with_target], dim=0)
+    images_with_bbox = torch.cat([images_with_preds, images_with_target], dim=0)
     images_with_bbox = make_grid(images_with_bbox, nrow=len(images))
 
     return images_with_bbox
+
+
+def tensor_to_image(tensor: Tensor) -> Image:
+    return v2.ToPILImage()(tensor)
