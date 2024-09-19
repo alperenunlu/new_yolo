@@ -1,4 +1,5 @@
-from argparse import ArgumentParser
+from pathlib import Path
+from argparse import ArgumentParser, Namespace
 
 import torch
 
@@ -11,10 +12,8 @@ from yolo_model import YOLOv1ResNet
 from yolo_utils import yolo_pred_to_xyxy, filter_boxes
 from yolo_viz_utils import draw_yolo_from_dict, tensor_to_image
 
-from pathlib import Path
 
-
-def parse_args():
+def parse_args() -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--checkpoint", "-cp", type=Path, required=True)
     parser.add_argument("--image", "-i", type=Path, required=True)
