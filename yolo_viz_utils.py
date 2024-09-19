@@ -154,7 +154,7 @@ def draw_yolo_from_dict(
         return image.detach().cpu()
 
     image_with_bbox = draw_bounding_boxes(
-        v2.ToDtype(torch.uint8, scale=True)(image),
+        image,
         coords,
         labels=labels_with_conf,
         colors=[COLORS[i] for i in labels],
