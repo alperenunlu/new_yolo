@@ -159,8 +159,8 @@ def draw_yolo_from_dict(
         labels=labels_with_conf,
         colors=[COLORS[i] for i in labels],
         width=3,
-        font="Courier",
-        font_size=25,
+        # font="Courier",
+        # font_size=25,
     )
 
     return image_with_bbox

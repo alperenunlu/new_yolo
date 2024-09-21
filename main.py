@@ -2,7 +2,7 @@ from pathlib import Path
 
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from torch.optim.lr_scheduler import StepLR
+from torch.optim.lr_scheduler import OneCycleLR
 from torchmetrics.detection import MeanAveragePrecision
 from accelerate import Accelerator
 
@@ -36,7 +36,13 @@ if __name__ == "__main__":
     model = YOLOv1ResNet(config)
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
-    scheduler = StepLR(optimizer, step_size=3 * accelerator.num_processes, gamma=0.9)
+    scheduler = OneCycleLR(
+        optimizer,
+        max_lr=config.LEARNING_RATE,
+        epochs=config.NUM_EPOCHS,
+        steps_per_epoch=len(train_loader),
+        pct_start=0.2,
+    )
     metric = MeanAveragePrecision(dist_sync_on_step=True)
 
     start_epoch = 0
@@ -56,7 +62,7 @@ if __name__ == "__main__":
             optimizer=optimizer,
             loader=train_loader,
             criterion=criterion,
-            scheduler=None,
+            scheduler=scheduler,
             accelerator=accelerator,
             metric=metric,
             writer=writer,
@@ -73,7 +79,6 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
-        scheduler.step()
 
         save_checkpoint(
             model=model,
