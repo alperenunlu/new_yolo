@@ -7,7 +7,7 @@ from voc_utils import get_transforms_func, collate_fn
 from typing import Tuple
 from config_parser import YOLOConfig
 
-download = not __import__("os").path.exists("data/VOCdevkit")
+download = not __import__("os").path.exists("./data/VOCdevkit")
 
 def get_dataloaders(config: YOLOConfig) -> Tuple[DataLoader, DataLoader]:
     train_datasets = [
