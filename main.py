@@ -71,6 +71,8 @@ if __name__ == "__main__":
         valid_loader,
     )
 
+    curr_map_50 = float("-inf")
+
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
@@ -97,18 +99,22 @@ if __name__ == "__main__":
             config=config,
         )
 
-        save_checkpoint(
-            model=ema_model,
-            optimizer=optimizer,
-            scheduler=scheduler,
-            accelerator=accelerator,
-            epoch=epoch,
-            config=config,
-            map_value=valid_map,
-            map50=valid_map50,
-            metric_compute=valid_metric_compute,
-            loss=valid_loss,
-            path=Path(f"checkpoints/yolo_v1_resnet_{epoch}"),
-        )
+        if valid_map50 > curr_map_50:
+            curr_map_50 = valid_map50
+
+
+            save_checkpoint(
+                model=ema_model,
+                optimizer=optimizer,
+                scheduler=scheduler,
+                accelerator=accelerator,
+                epoch=epoch,
+                config=config,
+                map_value=valid_map,
+                map50=valid_map50,
+                metric_compute=valid_metric_compute,
+                loss=valid_loss,
+                path=Path("checkpoints/yolo_v1_resnet"),
+            )
 
     writer.close()
