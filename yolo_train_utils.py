@@ -1,7 +1,5 @@
 import torch
 
-from torchvision.ops import box_iou
-
 from safetensors.torch import load_model
 
 from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy

@@ -4,7 +4,6 @@ from pathlib import Path
 
 import torch
 from tqdm import tqdm
-from torchvision.ops import box_iou
 from torchmetrics.detection import MeanAveragePrecision
 from safetensors.torch import load_model
 
