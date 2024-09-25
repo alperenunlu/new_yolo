@@ -33,7 +33,6 @@ if __name__ == "__main__":
 
     train_loader, valid_loader = get_dataloaders(config)
     model = YOLOv1ResNet(config)
-    ema_model = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(0.999))
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     scheduler = OneCycleLR(
@@ -49,24 +48,10 @@ if __name__ == "__main__":
     if args.checkpoint:
         start_epoch = load_checkpoint(model, optimizer, scheduler, args.checkpoint) + 1
 
-    (
-        model,
-        ema_model,
-        criterion,
-        optimizer,
-        scheduler,
-        metric,
-        train_loader,
-        valid_loader,
-    ) = accelerator.prepare(
-        model,
-        ema_model,
-        criterion,
-        optimizer,
-        scheduler,
-        metric,
-        train_loader,
-        valid_loader,
+    model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
+        accelerator.prepare(
+            model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
+        )
     )
 
     curr_map_50 = float("-inf")
@@ -75,7 +60,6 @@ if __name__ == "__main__":
     for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
             model=model,
-            ema_model=ema_model,
             optimizer=optimizer,
             loader=train_loader,
             criterion=criterion,
@@ -87,7 +71,7 @@ if __name__ == "__main__":
             config=config,
         )
         valid_map, valid_map50, valid_metric_compute, valid_loss = valid_one_epoch(
-            model=ema_model,
+            model=model,
             loader=valid_loader,
             criterion=criterion,
             accelerator=accelerator,
@@ -101,7 +85,7 @@ if __name__ == "__main__":
             curr_map_50 = valid_map50
 
             save_checkpoint(
-                model=ema_model,
+                model=model,
                 optimizer=optimizer,
                 scheduler=scheduler,
                 accelerator=accelerator,
