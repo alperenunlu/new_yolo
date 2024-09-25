@@ -41,7 +41,7 @@ if __name__ == "__main__":
         steps_per_epoch=len(train_loader),
         pct_start=0.3,
     )
-    metric = MeanAveragePrecision(dist_sync_on_step=True)
+    metric = MeanAveragePrecision(dist_sync_on_step=True, backend='faster_coco_eval')
 
     start_epoch = 0
     if args.checkpoint:
