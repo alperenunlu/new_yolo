@@ -1,3 +1,4 @@
+import argparse
 from pathlib import Path
 
 import torch.optim as optim
@@ -7,10 +8,7 @@ from torch.optim.lr_scheduler import OneCycleLR
 from torchmetrics.detection import MeanAveragePrecision
 from accelerate import Accelerator
 
-
-import argparse
 from config_parser import load_config
-
 from voc_data import get_dataloaders
 from yolo_model import YOLOv1ResNet
 from yolo_loss import YOLOLoss
