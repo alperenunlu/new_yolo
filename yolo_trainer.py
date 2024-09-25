@@ -23,7 +23,7 @@ def train_one_epoch(
     model.train()
     running_map50 = running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}", leave=False)
+    loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
         with accelerator.accumulate(model):
             global_step = epoch * len(loader) + batch_idx
@@ -94,11 +94,9 @@ def valid_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.eval()
-    running_loss = running_iou = 0.0
+    running_map50 = running_loss = running_iou = 0.0
 
-    loop = tqdm(
-        loader, total=len(loader), desc=f"Validating Epoch {epoch}", leave=False
-    )
+    loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
 
@@ -106,10 +104,8 @@ def valid_one_epoch(
         loss, avg_iou = criterion(preds, targets)
 
         loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
-        running_loss += loss.mean().item()
-        running_iou += avg_iou.mean().item()
 
-        log_progress(
+        map_50 = log_progress(
             writer=writer,
             metric=metric,
             inputs=inputs,
@@ -123,10 +119,15 @@ def valid_one_epoch(
             prefix="Valid",
         )
 
+        running_loss += loss.mean().item()
+        running_iou += avg_iou.mean().item()
+        running_map50 += map_50
+
         loop.set_postfix(
             {
                 "loss": f"{running_loss / (batch_idx + 1):.4f}",
                 "iou": f"{running_iou / (batch_idx + 1):.4f}",
+                "map50": f"{running_map50 / (batch_idx + 1):.4f}",
             }
         )
 
