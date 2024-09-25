@@ -28,7 +28,7 @@ def log_progress(
     prefix: str,
     config: YOLOConfig,
     lr: Optional[float] = None,
-) -> None:
+) -> float:
     threshold = 0.5
 
     pred_bboxes_list = yolo_pred_to_xyxy(preds, config=config, threshold=threshold)
@@ -69,6 +69,8 @@ def log_progress(
             ),
             global_step,
         )
+
+    return metrics["mAP50"].item()
 
 
 def log_epoch_summary(

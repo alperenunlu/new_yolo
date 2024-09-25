@@ -21,7 +21,7 @@ def train_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.train()
-    running_loss = running_iou = 0.0
+    running_map50 = running_loss = running_iou = 0.0
 
     loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}", leave=False)
     for batch_idx, (inputs, targets) in enumerate(loop):
@@ -39,10 +39,8 @@ def train_one_epoch(
                 scheduler.step()
 
             loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
-            running_loss += loss.mean().item()
-            running_iou += avg_iou.mean().item()
 
-            log_progress(
+            map_50 = log_progress(
                 writer=writer,
                 metric=metric,
                 inputs=inputs,
@@ -57,10 +55,15 @@ def train_one_epoch(
                 lr=optimizer.param_groups[0]["lr"],
             )
 
+            running_loss += loss.mean().item()
+            running_iou += avg_iou.mean().item()
+            running_map50 += map_50
+
             loop.set_postfix(
                 {
                     "loss": f"{running_loss / (batch_idx + 1):.4f}",
                     "iou": f"{running_iou / (batch_idx + 1):.4f}",
+                    "map50": f"{running_map50 / (batch_idx + 1):.4f}",
                 }
             )
 
