@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path
 
 import torch.optim as optim
-from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import OneCycleLR
 from torchmetrics.detection import MeanAveragePrecision
