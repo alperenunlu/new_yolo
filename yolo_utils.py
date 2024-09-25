@@ -128,20 +128,20 @@ def filter_boxes(
     bboxes_list: List[Dict[str, Union[Tensor, BoundingBoxes]]], threshold=0.5
 ) -> List[Dict[str, Union[Tensor, BoundingBoxes]]]:
     """
-    bbox: List of dictionaries with keys "boxes", "labels", "confidences"
+    bbox: List of dictionaries with keys "boxes", "labels", "scores"
 
     Returns:
-        filtered_bbox: List of dictionaries with keys "boxes", "labels", "confidences
+        filtered_bbox: List of dictionaries with keys "boxes", "labels", "scores
     """
     for sample in bboxes_list:
         keep = nms(
             sample["boxes"],
-            sample["confidences"],
+            sample["scores"],
             iou_threshold=threshold,
         )
         sample["boxes"] = sample["boxes"][keep]
         sample["labels"] = sample["labels"][keep]
-        sample["confidences"] = sample["confidences"][keep]
+        sample["scores"] = sample["scores"][keep]
 
     return bboxes_list
 
@@ -162,7 +162,7 @@ def yolo_target_to_xyxy(
     Returns:
         boxes: List of BoundingBoxes objects, one for each sample in the batch
         labels: List of Tensors, one for each sample in the batch
-        confidences: List of Tensors, one for each sample in the batch
+        scores: List of Tensors, one for each sample in the batch
     """
 
     C = config.C
@@ -188,7 +188,7 @@ def yolo_target_to_xyxy(
     valid_labels = torch.argmax(
         target[center_batch, center_row, center_col, :C], dim=-1
     )
-    valid_confidences = target[center_batch, center_row, center_col, C]
+    valid_scores = target[center_batch, center_row, center_col, C]
 
     bboxes_list = [
         dict(
@@ -198,7 +198,7 @@ def yolo_target_to_xyxy(
                 canvas_size=canvas_size,
             ),
             labels=valid_labels[mask],
-            confidences=valid_confidences[mask],
+            scores=valid_scores[mask],
         )
         for mask in valid_mask
     ]
@@ -217,9 +217,9 @@ def yolo_pred_to_xyxy(
     Returns:
         boxes: BoundingBoxes object with shape (N, 4) or (4)
         labels: Tensor of shape (N,) or ()
-        confidences: Tensor of shape (N,) or ()
+        scores: Tensor of shape (N,) or ()
 
-    Returns the boxes, labels, and confidences of the best boxes
+    Returns the boxes, labels, and scores of the best boxes
     """
     S = config.S
     C = config.C
@@ -246,7 +246,7 @@ def yolo_pred_to_xyxy(
 
     valid_bboxes = bboxes[center_batch, center_row, center_col, bbox_index]
     valid_labels = torch.argmax(pred[center_batch, center_row, center_col, :C], dim=-1)
-    valid_confidences = pred[center_batch, center_row, center_col, C + bbox_index * 5]
+    valid_scores = pred[center_batch, center_row, center_col, C + bbox_index * 5]
 
     bboxes_list = [
         dict(
@@ -256,7 +256,7 @@ def yolo_pred_to_xyxy(
                 canvas_size=config.IMAGE_SIZE,
             ),
             labels=valid_labels[mask],
-            confidences=valid_confidences[mask],
+            scores=valid_scores[mask],
         )
         for mask in valid_mask
     ]

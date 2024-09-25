@@ -49,12 +49,6 @@ def evaluate_model(
 
         pred_bboxes_list = filter_boxes(pred_bboxes_list, threshold=0.15)
 
-        for pred_bboxes, target_bboxes in zip(pred_bboxes_list, target_bboxes_list):
-            scores = (
-                box_iou(pred_bboxes["boxes"], target_bboxes["boxes"]).max(dim=1).values
-            )
-            pred_bboxes["scores"] = scores
-
         metrics = metric(pred_bboxes_list, target_bboxes_list)
 
         loop.set_postfix(

@@ -10,6 +10,7 @@ from accelerate import Accelerator
 
 def train_one_epoch(
     model: torch.nn.Module,
+    ema_model: torch.nn.Module,
     optimizer: torch.optim.Optimizer,
     loader: torch.utils.data.DataLoader,
     criterion: torch.nn.Module,
@@ -35,6 +36,7 @@ def train_one_epoch(
             # loss.backward()
             accelerator.backward(loss)
             optimizer.step()
+            ema_model.update_parameters(model)
             if scheduler:
                 scheduler.step()
 

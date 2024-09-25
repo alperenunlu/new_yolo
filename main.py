@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import torch.optim as optim
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import OneCycleLR
 from torchmetrics.detection import MeanAveragePrecision
@@ -34,6 +35,7 @@ if __name__ == "__main__":
 
     train_loader, valid_loader = get_dataloaders(config)
     model = YOLOv1ResNet(config)
+    ema_model = AveragedModel(model, multi_avg_fn=get_ema_multi_avg_fn(0.999))
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     scheduler = OneCycleLR(
@@ -41,7 +43,7 @@ if __name__ == "__main__":
         max_lr=config.LEARNING_RATE,
         epochs=config.NUM_EPOCHS,
         steps_per_epoch=len(train_loader),
-        pct_start=0.2,
+        pct_start=0.3,
     )
     metric = MeanAveragePrecision(dist_sync_on_step=True)
 
@@ -49,16 +51,31 @@ if __name__ == "__main__":
     if args.checkpoint:
         start_epoch = load_checkpoint(model, optimizer, scheduler, args.checkpoint) + 1
 
-    model, criterion, optimizer, scheduler, metric, train_loader, valid_loader = (
-        accelerator.prepare(
-            model, criterion, optimizer, scheduler, metric, train_loader, valid_loader
-        )
+    (
+        model,
+        ema_model,
+        criterion,
+        optimizer,
+        scheduler,
+        metric,
+        train_loader,
+        valid_loader,
+    ) = accelerator.prepare(
+        model,
+        ema_model,
+        criterion,
+        optimizer,
+        scheduler,
+        metric,
+        train_loader,
+        valid_loader,
     )
 
     writer = SummaryWriter()
     for epoch in range(start_epoch, config.NUM_EPOCHS):
         train_map, train_map50, train_metric_compute, train_loss = train_one_epoch(
             model=model,
+            ema_model=ema_model,
             optimizer=optimizer,
             loader=train_loader,
             criterion=criterion,
@@ -70,7 +87,7 @@ if __name__ == "__main__":
             config=config,
         )
         valid_map, valid_map50, valid_metric_compute, valid_loss = valid_one_epoch(
-            model=model,
+            model=ema_model,
             loader=valid_loader,
             criterion=criterion,
             accelerator=accelerator,
@@ -81,7 +98,7 @@ if __name__ == "__main__":
         )
 
         save_checkpoint(
-            model=model,
+            model=ema_model,
             optimizer=optimizer,
             scheduler=scheduler,
             accelerator=accelerator,

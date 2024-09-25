@@ -142,12 +142,12 @@ def draw_yolo_from_dict(
     )(image)
 
     coords, labels = bboxes["boxes"], bboxes["labels"]
-    confidences = bboxes.get("confidences", torch.ones_like(labels))
-    confidences *= 100
+    scores = bboxes.get("scores", torch.ones_like(labels))
+    scores *= 100
 
     labels_with_conf = [
         f"{config.VOC_DETECTION_CATEGORIES[i].upper()} ({conf:.2f})"
-        for i, conf in zip(labels, confidences)
+        for i, conf in zip(labels, scores)
     ]
 
     if coords.numel() == 0:

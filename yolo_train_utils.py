@@ -38,10 +38,6 @@ def log_progress(
         targets, config=config, threshold=threshold
     )
 
-    for pred_bboxes, target_bboxes in zip(pred_bboxes_list, target_bboxes_list):
-        scores = box_iou(pred_bboxes["boxes"], target_bboxes["boxes"]).max(dim=1).values
-        pred_bboxes["scores"] = scores
-
     metric_forward = metric(pred_bboxes_list, target_bboxes_list)
 
     metrics = {
