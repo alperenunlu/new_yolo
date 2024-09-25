@@ -102,7 +102,6 @@ if __name__ == "__main__":
         if valid_map50 > curr_map_50:
             curr_map_50 = valid_map50
 
-
             save_checkpoint(
                 model=ema_model,
                 optimizer=optimizer,
