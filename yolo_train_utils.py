@@ -58,7 +58,7 @@ def log_progress(
     if lr:
         writer.add_scalar(f"{prefix}/LearningRate", lr, global_step)
 
-    if batch_idx % 0 == 0:
+    if batch_idx % 200 == 0:
         writer.add_image(
             f"{prefix}/SampleDetections",
             draw_yolo_grid_from_dict(
