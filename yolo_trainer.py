@@ -21,7 +21,7 @@ def train_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.train()
-    running_map50 = running_loss = running_iou = 0.0
+    running_loss = running_iou = 0.0
 
     loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
@@ -34,6 +34,9 @@ def train_one_epoch(
             optimizer.zero_grad()
             # loss.backward()
             accelerator.backward(loss)
+            if accelerator.sync_gradients:
+                accelerator.clip_grad_norm_(model.parameters(), 1.0)
+
             optimizer.step()
             if scheduler:
                 scheduler.step()
@@ -57,13 +60,12 @@ def train_one_epoch(
 
             running_loss += loss.mean().item()
             running_iou += avg_iou.mean().item()
-            running_map50 += map_50
 
             loop.set_postfix(
                 {
                     "loss": f"{running_loss / (batch_idx + 1):.4f}",
                     "iou": f"{running_iou / (batch_idx + 1):.4f}",
-                    "map50": f"{running_map50 / (batch_idx + 1):.4f}",
+                    "map50": f"{map_50:.4f}",
                 }
             )
 
@@ -94,7 +96,7 @@ def valid_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.eval()
-    running_map50 = running_loss = running_iou = 0.0
+    running_loss = running_iou = 0.0
 
     loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}")
     for batch_idx, (inputs, targets) in enumerate(loop):
@@ -121,13 +123,12 @@ def valid_one_epoch(
 
         running_loss += loss.mean().item()
         running_iou += avg_iou.mean().item()
-        running_map50 += map_50
 
         loop.set_postfix(
             {
                 "loss": f"{running_loss / (batch_idx + 1):.4f}",
                 "iou": f"{running_iou / (batch_idx + 1):.4f}",
-                "map50": f"{running_map50 / (batch_idx + 1):.4f}",
+                "map50": f"{map_50:.4f}",
             }
         )
 
