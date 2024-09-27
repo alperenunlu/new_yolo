@@ -27,6 +27,7 @@ def log_progress(
     batch_idx: int,
     prefix: str,
     config: YOLOConfig,
+    log_img: bool = False,
     lr: Optional[float] = None,
 ) -> float:
     threshold = 0.5
@@ -58,7 +59,7 @@ def log_progress(
     if lr:
         writer.add_scalar(f"{prefix}/LearningRate", lr, global_step)
 
-    if batch_idx % 200 == 0:
+    if log_img:
         writer.add_image(
             f"{prefix}/SampleDetections",
             draw_yolo_grid_from_dict(

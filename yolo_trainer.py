@@ -26,8 +26,8 @@ def train_one_epoch(
     loop = tqdm(
         loader,
         total=len(loader),
-        desc=f"Training Epoch {epoch}",
-        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
+        desc=f"Training Epoch {epoch}:",
+        bar_format="{desc} {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
     )
     for batch_idx, (inputs, targets) in enumerate(loop):
         with accelerator.accumulate(model):
@@ -60,6 +60,7 @@ def train_one_epoch(
                 batch_idx=batch_idx,
                 prefix="Train",
                 config=config,
+                log_img=batch_idx == len(loader) - 1,
                 lr=optimizer.param_groups[0]["lr"],
             )
 
@@ -106,8 +107,8 @@ def valid_one_epoch(
     loop = tqdm(
         loader,
         total=len(loader),
-        desc=f"Validating Epoch {epoch}",
-        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
+        desc=f"Validating Epoch {epoch}:",
+        bar_format="{desc} {n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
     )
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
@@ -128,6 +129,7 @@ def valid_one_epoch(
             global_step=global_step,
             batch_idx=batch_idx,
             config=config,
+            log_img=batch_idx == len(loader) - 1,
             prefix="Valid",
         )
 
