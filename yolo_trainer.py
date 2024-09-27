@@ -21,7 +21,7 @@ def train_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.train()
-    running_loss = running_iou = 0.0
+    running_map50 = running_loss = running_iou = 0.0
 
     loop = tqdm(
         loader,
@@ -65,11 +65,12 @@ def train_one_epoch(
 
             running_loss += loss.mean().item()
             running_iou += avg_iou.mean().item()
+            running_map50 += map_50
 
             loop.set_postfix(
                 loss=f"{running_loss / (batch_idx + 1):.4f}",
                 iou=f"{running_iou / (batch_idx + 1):.4f}",
-                map50=f"{map_50:.4f}",
+                map50=f"{running_map50 / (batch_idx + 1):.4f}",
             )
 
     summary = log_epoch_summary(
@@ -80,12 +81,6 @@ def train_one_epoch(
         batch_idx,
         epoch,
         "Epoch/Train",
-    )
-
-    loop.set_postfix(
-        loss=f"{running_loss / (batch_idx + 1):.4f}",
-        iou=f"{running_iou / (batch_idx + 1):.4f}",
-        map50_final=f"{summary[1]:.4f}",
     )
 
     metric.reset()
@@ -105,7 +100,7 @@ def valid_one_epoch(
     config: YOLOConfig,
 ) -> Tuple[float, float, dict, float]:
     model.eval()
-    running_loss = running_iou = 0.0
+    running_map50 = running_loss = running_iou = 0.0
 
     loop = tqdm(
         loader,
@@ -138,11 +133,12 @@ def valid_one_epoch(
 
         running_loss += loss.mean().item()
         running_iou += avg_iou.mean().item()
+        running_map50 += map_50
 
         loop.set_postfix(
             loss=f"{running_loss / (batch_idx + 1):.4f}",
             iou=f"{running_iou / (batch_idx + 1):.4f}",
-            map50=f"{map_50:.4f}",
+            map50=f"{running_map50 / (batch_idx + 1):.4f}",
         )
 
     summary = log_epoch_summary(
@@ -153,12 +149,6 @@ def valid_one_epoch(
         batch_idx,
         epoch,
         "Epoch/Valid",
-    )
-
-    loop.set_postfix(
-        loss=f"{running_loss / (batch_idx + 1):.4f}",
-        iou=f"{running_iou / (batch_idx + 1):.4f}",
-        map50_final=f"{summary[1]:.4f}",
     )
 
     metric.reset()
