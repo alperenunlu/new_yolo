@@ -27,7 +27,7 @@ def train_one_epoch(
         loader,
         total=len(loader),
         desc=f"Training Epoch {epoch}",
-        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}, {postfix}]",
+        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
     )
     for batch_idx, (inputs, targets) in enumerate(loop):
         with accelerator.accumulate(model):
@@ -107,7 +107,7 @@ def valid_one_epoch(
         loader,
         total=len(loader),
         desc=f"Validating Epoch {epoch}",
-        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}, {postfix}]",
+        bar_format="{n_fmt}/{total_fmt} [{elapsed}<{remaining}{postfix}]",
     )
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
