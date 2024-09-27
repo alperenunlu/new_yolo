@@ -23,7 +23,12 @@ def train_one_epoch(
     model.train()
     running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Training Epoch {epoch}", ascii=True)
+    loop = tqdm(
+        loader,
+        total=len(loader),
+        desc=f"Training Epoch {epoch}",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {postfix}]",
+    )
     for batch_idx, (inputs, targets) in enumerate(loop):
         with accelerator.accumulate(model):
             global_step = epoch * len(loader) + batch_idx
@@ -98,7 +103,12 @@ def valid_one_epoch(
     model.eval()
     running_loss = running_iou = 0.0
 
-    loop = tqdm(loader, total=len(loader), desc=f"Validating Epoch {epoch}", ascii=True)
+    loop = tqdm(
+        loader,
+        total=len(loader),
+        desc=f"Validating Epoch {epoch}",
+        bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {postfix}]",
+    )
     for batch_idx, (inputs, targets) in enumerate(loop):
         global_step = epoch * len(loader) + batch_idx
 
