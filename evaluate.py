@@ -43,10 +43,10 @@ def evaluate_model(
         running_loss += loss.item()
         running_iou += avg_iou.item()
 
-        pred_bboxes_list = yolo_pred_to_xyxy(preds, config, threshold=0.6)
-        target_bboxes_list = yolo_target_to_xyxy(targets, config, threshold=0.6)
+        pred_bboxes_list = yolo_pred_to_xyxy(preds, config, threshold=0.5)
+        target_bboxes_list = yolo_target_to_xyxy(targets, config, threshold=0.5)
 
-        pred_bboxes_list = filter_boxes(pred_bboxes_list, threshold=0.15)
+        pred_bboxes_list = filter_boxes(pred_bboxes_list, threshold=0.5)
 
         metrics = metric(pred_bboxes_list, target_bboxes_list)
 
@@ -65,7 +65,7 @@ def evaluate_model(
 
 def main():
     args = parse_args()
-    config = torch.load(args.checkpoint / "config.pt")
+    config = torch.load(args.checkpoint / "config.pt", weights_only=False)
     _, valid_loader = get_dataloaders(config)
 
     device = torch.device(

@@ -37,7 +37,6 @@ def train_one_epoch(
             loss, avg_iou = criterion(preds, targets)
 
             optimizer.zero_grad()
-            # loss.backward()
             accelerator.backward(loss)
             if accelerator.sync_gradients:
                 accelerator.clip_grad_norm_(model.parameters(), 1.0)
@@ -68,11 +67,9 @@ def train_one_epoch(
             running_iou += avg_iou.mean().item()
 
             loop.set_postfix(
-                {
-                    "loss": f"{running_loss / (batch_idx + 1):.4f}",
-                    "iou": f"{running_iou / (batch_idx + 1):.4f}",
-                    "map50": f"{map_50:.4f}",
-                }
+                loss=f"{running_loss / (batch_idx + 1):.4f}",
+                iou=f"{running_iou / (batch_idx + 1):.4f}",
+                map50=f"{map_50:.4f}",
             )
 
     summary = log_epoch_summary(
@@ -83,6 +80,12 @@ def train_one_epoch(
         batch_idx,
         epoch,
         "Epoch/Train",
+    )
+
+    loop.set_postfix(
+        loss=f"{running_loss / (batch_idx + 1):.4f}",
+        iou=f"{running_iou / (batch_idx + 1):.4f}",
+        map50=f"{summary[1]:.4f}",
     )
 
     metric.reset()
@@ -137,11 +140,9 @@ def valid_one_epoch(
         running_iou += avg_iou.mean().item()
 
         loop.set_postfix(
-            {
-                "loss": f"{running_loss / (batch_idx + 1):.4f}",
-                "iou": f"{running_iou / (batch_idx + 1):.4f}",
-                "map50": f"{map_50:.4f}",
-            }
+            loss=f"{running_loss / (batch_idx + 1):.4f}",
+            iou=f"{running_iou / (batch_idx + 1):.4f}",
+            map50=f"{map_50:.4f}",
         )
 
     summary = log_epoch_summary(
@@ -152,6 +153,12 @@ def valid_one_epoch(
         batch_idx,
         epoch,
         "Epoch/Valid",
+    )
+
+    loop.set_postfix(
+        loss=f"{running_loss / (batch_idx + 1):.4f}",
+        iou=f"{running_iou / (batch_idx + 1):.4f}",
+        map50=f"{summary[1]:.4f}",
     )
 
     metric.reset()
