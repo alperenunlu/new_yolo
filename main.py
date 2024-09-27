@@ -14,15 +14,19 @@ from yolo_loss import YOLOLoss
 from yolo_trainer import train_one_epoch, valid_one_epoch
 from yolo_train_utils import save_checkpoint, load_checkpoint
 
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    "--config", "-c", type=str, default="yolo_config.yaml", help="Path to config file"
-)
-parser.add_argument(
-    "--checkpoint", "-cp", type=Path, default=None, help="Path to checkpoint file"
-)
 
-if __name__ == "__main__":
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        "-c",
+        type=str,
+        default="yolo_config.yaml",
+        help="Path to config file",
+    )
+    parser.add_argument(
+        "--checkpoint", "-cp", type=Path, default=None, help="Path to checkpoint file"
+    )
     args = parser.parse_args()
     config = load_config(args.config)
 
@@ -41,7 +45,7 @@ if __name__ == "__main__":
         steps_per_epoch=len(train_loader),
         pct_start=0.3,
     )
-    metric = MeanAveragePrecision(dist_sync_on_step=True, backend='faster_coco_eval')
+    metric = MeanAveragePrecision(dist_sync_on_step=True, backend="faster_coco_eval")
 
     start_epoch = 0
     if args.checkpoint:
@@ -79,11 +83,13 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
-        print(dict(
-            epoch=epoch,
-            train_map50=train_map50,
-            valid_map50=valid_map50,
-        ))
+        print(
+            dict(
+                epoch=epoch,
+                train_map50=train_map50,
+                valid_map50=valid_map50,
+            )
+        )
 
         if valid_map50 > curr_map_50:
             curr_map_50 = valid_map50
@@ -103,3 +109,7 @@ if __name__ == "__main__":
             )
 
     writer.close()
+
+
+if __name__ == "__main__":
+    main()
