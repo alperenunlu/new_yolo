@@ -85,7 +85,7 @@ def train_one_epoch(
     loop.set_postfix(
         loss=f"{running_loss / (batch_idx + 1):.4f}",
         iou=f"{running_iou / (batch_idx + 1):.4f}",
-        map50=f"{summary[1]:.4f}",
+        map50_final=f"{summary[1]:.4f}",
     )
 
     metric.reset()
@@ -158,7 +158,7 @@ def valid_one_epoch(
     loop.set_postfix(
         loss=f"{running_loss / (batch_idx + 1):.4f}",
         iou=f"{running_iou / (batch_idx + 1):.4f}",
-        map50=f"{summary[1]:.4f}",
+        map50_final=f"{summary[1]:.4f}",
     )
 
     metric.reset()
