@@ -79,6 +79,11 @@ if __name__ == "__main__":
             epoch=epoch,
             config=config,
         )
+        print(dict(
+            epoch=epoch,
+            train_map50=train_map50,
+            valid_map50=valid_map50,
+        ))
 
         if valid_map50 > curr_map_50:
             curr_map_50 = valid_map50
