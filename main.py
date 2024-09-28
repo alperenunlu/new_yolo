@@ -43,7 +43,7 @@ def main():
         max_lr=config.LEARNING_RATE,
         epochs=config.NUM_EPOCHS,
         steps_per_epoch=len(train_loader),
-        pct_start=0.3,
+        pct_start=0.05,
     )
     metric = MeanAveragePrecision(dist_sync_on_step=True, backend="faster_coco_eval")
 
