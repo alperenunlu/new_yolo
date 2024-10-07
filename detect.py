@@ -22,11 +22,19 @@ def parse_args() -> Namespace:
 
 def main():
     args = parse_args()
-    config = torch.load(args.checkpoint / "config.pt")
+    config = torch.load(args.checkpoint / "config.pt", weights_only=False)
     transforms = v2.Compose(
         [
             v2.ToImage(),
             v2.Resize(config.IMAGE_SIZE),
+            v2.ToDtype(torch.float32, scale=True),
+            v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+
+    transforms_no_resize = v2.Compose(
+        [
+            v2.ToImage(),
             v2.ToDtype(torch.float32, scale=True),
             v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ]
@@ -63,7 +71,7 @@ def main():
     )[0]
 
     image_with_bbox = draw_yolo_from_dict(
-        image.squeeze(0),
+        transforms_no_resize(original_image),
         bboxes,
         config,
     )
