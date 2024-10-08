@@ -71,7 +71,7 @@ def main():
     )[0]
 
     image_with_bbox = draw_yolo_from_dict(
-        transforms_no_resize(original_image),
+        image.squeeze(0),
         bboxes,
         config,
     )
