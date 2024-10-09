@@ -38,8 +38,6 @@ def train_one_epoch(
 
             optimizer.zero_grad()
             accelerator.backward(loss)
-            if accelerator.sync_gradients:
-                accelerator.clip_grad_norm_(model.parameters(), 1.0)
 
             optimizer.step()
             if scheduler:
