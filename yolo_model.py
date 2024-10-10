@@ -23,10 +23,10 @@ class YOLOV1(nn.Module):
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.1),
             nn.Flatten(),
-            nn.Linear(1024 * 14 * 14, 4096),
+            nn.Linear(1024 * 14 * 14, 1024),
             nn.Dropout(0.5),
             nn.LeakyReLU(0.1),
-            nn.Linear(4096, config.S * config.S * (config.B * 5 + config.C)),
+            nn.Linear(1024, config.S * config.S * (config.B * 5 + config.C)),
         )
 
     def forward(self, x):
