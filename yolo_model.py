@@ -8,11 +8,11 @@ class YOLOV1(nn.Module):
     def __init__(self, config=YOLOConfig):
         super().__init__()
 
-        if config.backbone == "resnet34":
+        if config.BACKBONE == "resnet34":
             self.backbone = nn.Sequential(
                 *list(resnet34(weights="DEFAULT").children())[:-2]
             )
-        elif config.backbone == "resnet50":
+        elif config.BACKBONE == "resnet50":
             self.backbone = nn.Sequential(
                 *list(resnet50(weights="DEFAULT").children())[:-2]
             )

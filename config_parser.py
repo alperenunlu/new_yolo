@@ -18,7 +18,7 @@ class YOLOConfig:
 
     Rescore: bool
 
-    MODEL: str
+    BACKBONE: str
 
     BATCH_SIZE: int
     NUM_EPOCHS: int

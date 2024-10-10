@@ -36,7 +36,7 @@ L_class: 1.0
 
 Rescore: True
 
-MODEL: "resnet50"
+BACKBONE: "resnet50"
 
 BATCH_SIZE: 32
 NUM_EPOCHS: 135
