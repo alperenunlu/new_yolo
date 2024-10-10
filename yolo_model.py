@@ -18,15 +18,10 @@ class YOLOV1(nn.Module):
                 *list(resnet50(weights="DEFAULT").children())[:-2]
             )
 
-        self.neck = nn.Sequential(
+        self.head = nn.Sequential(
             nn.Conv2d(2048, 1024, kernel_size=3, padding=1),
             nn.BatchNorm2d(1024),
             nn.LeakyReLU(0.1),
-            nn.Conv2d(1024, 1024, kernel_size=3, padding=1),
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.1),
-        )
-        self.head = nn.Sequential(
             nn.Flatten(),
             nn.Linear(1024 * 14 * 14, 4096),
             nn.Dropout(0.5),
@@ -36,7 +31,6 @@ class YOLOV1(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
-        x = self.neck(x)
         x = self.head(x)
         return x.view(x.size(0), self.S, self.S, 5 + 5 + 20)
 
