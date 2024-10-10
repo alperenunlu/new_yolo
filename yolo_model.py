@@ -7,6 +7,7 @@ from config_parser import YOLOConfig
 class YOLOV1(nn.Module):
     def __init__(self, config=YOLOConfig):
         super().__init__()
+        self.S = config.S
 
         if config.BACKBONE == "resnet34":
             self.backbone = nn.Sequential(
@@ -37,7 +38,7 @@ class YOLOV1(nn.Module):
         x = self.backbone(x)
         x = self.neck(x)
         x = self.head(x)
-        return x
+        return x.view(x.size(0), self.S, self.S, 5 + 5 + 20)
 
 
 if __name__ == "__main__":
