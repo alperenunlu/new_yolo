@@ -7,7 +7,7 @@ from tqdm import tqdm
 from torchmetrics.detection import MeanAveragePrecision
 from safetensors.torch import load_model
 
-from yolo_model import YOLOv1ResNet
+from yolo_model import YOLOV1
 from yolo_loss import YOLOLoss
 from yolo_utils import yolo_pred_to_xyxy, yolo_target_to_xyxy, filter_boxes
 from voc_data import get_dataloaders
@@ -76,7 +76,7 @@ def main():
         else "cpu"
     )
 
-    model = YOLOv1ResNet(config)
+    model = YOLOV1(config)
     criterion = YOLOLoss(config)
     metric = MeanAveragePrecision(dist_sync_on_step=True)
 

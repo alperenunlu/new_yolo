@@ -8,7 +8,7 @@ from torchvision.transforms import v2
 
 from safetensors.torch import load_model
 
-from yolo_model import YOLOv1ResNet
+from yolo_model import YOLOV1
 from yolo_utils import yolo_pred_to_xyxy, filter_boxes
 from yolo_viz_utils import draw_yolo_from_dict, tensor_to_image
 
@@ -32,14 +32,6 @@ def main():
         ]
     )
 
-    transforms_no_resize = v2.Compose(
-        [
-            v2.ToImage(),
-            v2.ToDtype(torch.float32, scale=True),
-            v2.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ]
-    )
-
     device = torch.device(
         "cuda"
         if torch.cuda.is_available()
@@ -48,7 +40,7 @@ def main():
         else "cpu"
     )
 
-    model = YOLOv1ResNet(config).to(device)
+    model = YOLOV1(config).to(device)
     missing, unexpected = load_model(model, args.checkpoint / "model.safetensors")
     assert (
         not missing and not unexpected

@@ -9,7 +9,7 @@ from accelerate import Accelerator
 
 from config_parser import load_config
 from voc_data import get_dataloaders
-from yolo_model import YOLOv1ResNet
+from yolo_model import YOLOV1
 from yolo_loss import YOLOLoss
 from yolo_trainer import train_one_epoch, valid_one_epoch
 from yolo_train_utils import save_checkpoint, load_checkpoint
@@ -35,7 +35,7 @@ def main():
     )
 
     train_loader, valid_loader = get_dataloaders(config)
-    model = YOLOv1ResNet(config)
+    model = YOLOV1(config)
     criterion = YOLOLoss(config)
     optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
     scheduler = OneCycleLR(
