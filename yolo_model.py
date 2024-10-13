@@ -21,15 +21,20 @@ class YOLOV1(nn.Module):
         self.head = nn.Sequential(
             nn.Conv2d(2048, 1024, kernel_size=3, padding=1),
             nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.1),
+            nn.LeakyReLU(0.1, inplace=True),
             nn.Conv2d(1024, 1024, kernel_size=3, padding=1, stride=2),
             nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.1),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(1024, 1024, kernel_size=3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Conv2d(1024, 1024, kernel_size=3, padding=1),
+            nn.BatchNorm2d(1024),
+            nn.LeakyReLU(0.1, inplace=True),
             nn.Flatten(),
-            nn.Linear(1024 * 7 * 7, 1024),
-            nn.Dropout(0.5),
-            nn.LeakyReLU(0.1),
-            nn.Linear(1024, config.S * config.S * (config.B * 5 + config.C)),
+            nn.Linear(1024 * 7 * 7, 4096),
+            nn.LeakyReLU(0.1, inplace=True),
+            nn.Linear(4096, config.S * config.S * (config.B * 5 + config.C)),
         )
 
     def forward(self, x):
