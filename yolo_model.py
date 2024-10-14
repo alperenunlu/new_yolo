@@ -1,5 +1,6 @@
 from torch import nn
 from torchvision.models import resnet34, resnet50
+from torchvision.models import ResNet34_Weights, ResNet50_Weights
 
 from config_parser import YOLOConfig
 
@@ -11,11 +12,11 @@ class YOLOV1(nn.Module):
 
         if config.BACKBONE == "resnet34":
             self.backbone = nn.Sequential(
-                *list(resnet34(weights="DEFAULT").children())[:-2]
+                *list(resnet34(weights=ResNet34_Weights.DEFAULT).children())[:-2]
             )
         elif config.BACKBONE == "resnet50":
             self.backbone = nn.Sequential(
-                *list(resnet50(weights="DEFAULT").children())[:-2]
+                *list(resnet50(ResNet50_Weights.DEFAULT).children())[:-2]
             )
 
         self.head = nn.Sequential(
