@@ -35,6 +35,7 @@ class YOLOV1(nn.Module):
             nn.Flatten(),
             nn.Linear(1024 * 7 * 7, 4096),
             nn.LeakyReLU(0.1, inplace=True),
+            nn.Dropout(0.5),
             nn.Linear(4096, config.S * config.S * (config.B * 5 + config.C)),
         )
 

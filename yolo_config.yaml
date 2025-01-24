@@ -34,7 +34,7 @@ L_obj: 1.0
 L_noobj: 0.5
 L_class: 1.0
 
-Rescore: True
+Rescore: False
 
 BACKBONE: "resnet50"
 

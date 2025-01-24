@@ -24,7 +24,7 @@ class YOLOLoss(nn.Module):
 
         loss =
             L_coord * obj * [(x - x_hat)^2 + (y - y_hat)^2]
-            L_coord * obj * [w - sqrt(w_hat))^2 + (h - sqrt(h_hat))^2]
+            L_coord * obj * [sqrt(w) - sqrt(sqrt(w_hat))^2) + (sqrt(h) - sqrt(sqrt(h_hat))^2)]
             obj * [(conf - conf_hat)^2]
             L_noobj * noobj * [(conf - conf_hat)^2]
             obj * [(c - c_hat)^2]
@@ -69,7 +69,11 @@ class YOLOLoss(nn.Module):
         )
 
         wh_loss = torch.sum(
-            (obj_target_coords[..., 2:] - (obj_resp_coords[..., 2:] ** 2).sqrt()) ** 2
+            (
+                obj_target_coords[..., 2:].sqrt()
+                - (obj_resp_coords[..., 2:] ** 2).sqrt().sqrt()
+            )
+            ** 2
         )
 
         box_loss = self.config.L_coord * (center_loss + wh_loss)
@@ -77,7 +81,7 @@ class YOLOLoss(nn.Module):
         # Object Loss
         if self.config.Rescore:
             conf_loss = self.config.L_obj * torch.sum(
-                (ious[obj_mask].detach() - resp_boxes[obj_mask][..., 0]) ** 2
+                (ious[obj_mask] - resp_boxes[obj_mask][..., 0]) ** 2
             )
         else:
             conf_loss = self.config.L_obj * torch.sum(
@@ -110,7 +114,7 @@ if __name__ == "__main__":
             torch.randint(0, C, (S, S)),
             num_classes=C,
         )
-        coords = torch.randn(S, S, B * 5)
+        coords = torch.rand(S, S, B * 5)
         pred = torch.cat((classes, coords), dim=-1)
         pred.unsqueeze_(0)
         pred = torch.cat([pred] * BATCH_SIZE, dim=0)
