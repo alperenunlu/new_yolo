@@ -37,13 +37,12 @@ def main():
     train_loader, valid_loader = get_dataloaders(config)
     model = YOLOV1(config)
     criterion = YOLOLoss(config)
-    optimizer = optim.AdamW(model.parameters(), lr=config.LEARNING_RATE, eps=1e-5)
+    optimizer = optim.AdamW(model.parameters(), lr=config.LEARNING_RATE, weight_decay=config.WEIGHT_DECAY, eps=1e-5)
     scheduler = OneCycleLR(
         optimizer,
         max_lr=config.LEARNING_RATE,
         epochs=config.NUM_EPOCHS,
         steps_per_epoch=len(train_loader),
-        pct_start=0.05,
     )
     metric = MeanAveragePrecision(dist_sync_on_step=True, backend="faster_coco_eval")
 
