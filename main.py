@@ -37,7 +37,7 @@ def main():
     train_loader, valid_loader = get_dataloaders(config)
     model = YOLOV1(config)
     criterion = YOLOLoss(config)
-    optimizer = optim.Adam(model.parameters(), lr=config.LEARNING_RATE)
+    optimizer = optim.AdamW(model.parameters(), lr=config.LEARNING_RATE, eps=1e-5)
     scheduler = OneCycleLR(
         optimizer,
         max_lr=config.LEARNING_RATE,
