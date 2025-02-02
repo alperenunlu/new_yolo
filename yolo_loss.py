@@ -50,10 +50,10 @@ class YOLOLoss(nn.Module):
             self.config,
         )
 
-        box_loss = torch.zeros(1)
-        conf_loss = torch.zeros(1)
-        noobj_loss = torch.zeros(1)
-        class_loss = torch.zeros(1)
+        box_loss = 0
+        conf_loss = 0
+        noobj_loss = 0
+        class_loss = 0
 
         for batch in range(BATCH_SIZE):
             for i in range(S):
