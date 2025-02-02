@@ -38,7 +38,7 @@ class YOLOLoss(nn.Module):
         C = self.config.C
         BATCH_SIZE = pred.size(0)
 
-        obj_mask = target[..., C] == 1
+        obj_mask = (target[..., C] == 1).view(BATCH_SIZE, S, S, 1)
         noobj_mask = ~obj_mask
 
         pred_boxes = pred[..., C:].view(-1, S, S, B, 5)
@@ -50,114 +50,50 @@ class YOLOLoss(nn.Module):
             self.config,
         )
 
-        box_loss = 0
-        conf_loss = 0
-        noobj_loss = 0
-        class_loss = 0
+        pred_boxes = pred_boxes[
+            torch.arange(pred_boxes.size(0)).view(-1, 1, 1).expand_as(best_bbox),
+            torch.arange(pred_boxes.size(1)).view(1, -1, 1).expand_as(best_bbox),
+            torch.arange(pred_boxes.size(2)).view(1, 1, -1).expand_as(best_bbox), 
+            best_bbox
+        ]
 
-        for batch in range(BATCH_SIZE):
-            for i in range(S):
-                for j in range(S):
-                    if obj_mask[batch, i, j]:
-                        center_loss = (
-                            (
-                                target_boxes[batch, i, j, 1:3]
-                                - pred_boxes[batch, i, j, best_bbox[batch, i, j], 1:3]
-                            )
-                            ** 2
-                        ).sum()
+        # Box Loss
+        center_loss = torch.sum(
+            ((target_boxes[..., 1:3] - pred_boxes[..., 1:3]) ** 2) * obj_mask
+        )
 
-                        wh_loss = (
-                            (
-                                target_boxes[batch, i, j, 3:].sqrt()
-                                - pred_boxes[batch, i, j, best_bbox[batch, i, j], 3:]
-                                .pow(2)
-                                .sqrt()
-                                .sqrt()
-                            )
-                            ** 2
-                        ).sum()
+        wh_loss = torch.sum(
+            ((
+                target_boxes[..., 3:].sqrt()
+                - (pred_boxes[..., 3:] ** 2).sqrt().sqrt()
+            ) ** 2) * obj_mask
+        )
 
-                        box_loss += self.config.L_coord * (center_loss + wh_loss)
+        box_loss = self.config.L_coord * (center_loss + wh_loss)
 
-                        conf_loss += self.config.L_obj * (
-                            (
-                                target_boxes[batch, i, j, 0]
-                                - pred_boxes[batch, i, j, best_bbox[batch, i, j], 0]
-                            )
-                            ** 2
-                        )
+        # Object Loss
+        if self.config.Rescore:
+            conf_loss = self.config.L_obj * torch.sum(
+                ((ious - pred_boxes[..., 0]) ** 2) * obj_mask
+            )
+        else:
+            conf_loss = self.config.L_obj * torch.sum(
+                ((target_boxes[..., 0] - pred_boxes[..., 0]) ** 2) * obj_mask.squeeze(-1)
+            )
 
-                        class_loss += (
-                            self.config.L_class
-                            * (
-                                (pred[batch, i, j, :C] - target[batch, i, j, :C]) ** 2
-                            ).sum()
-                        )
+        # No Object Loss
+        noobj_loss = self.config.L_noobj * torch.sum(
+            ((target_boxes[..., 0] - pred_boxes[..., 0]) ** 2) * noobj_mask.squeeze(-1)
+        )
 
-                    if noobj_mask[batch, i, j]:
-                        noobj_loss += self.config.L_noobj * (
-                            (
-                                target_boxes[batch, i, j, 0]
-                                - pred_boxes[batch, i, j, best_bbox[batch, i, j], 0]
-                            )
-                            ** 2
-                        )
+        # Class Loss
+        class_loss = self.config.L_class * torch.sum(
+            ((pred[..., :C] - target[..., :C]) ** 2) * obj_mask
+        )
 
         loss = box_loss + conf_loss + noobj_loss + class_loss
 
-        # resp_boxes = pred_boxes.gather(
-        #     -2,
-        #     best_bbox.unsqueeze(-1)
-        #     .unsqueeze(-1)
-        #     .expand(-1, -1, -1, -1, pred_boxes.size(-1)),
-        # ).squeeze(-2)
-
-        # resp_coords = resp_boxes[..., 1:]
-        # target_coords = target_boxes[..., 1:]
-
-        # # Box Loss
-        # obj_resp_coords = resp_coords[obj_mask]
-        # obj_target_coords = target_coords[obj_mask]
-
-        # center_loss = torch.sum(
-        #     (obj_target_coords[..., :2] - obj_resp_coords[..., :2]) ** 2
-        # )
-
-        # wh_loss = torch.sum(
-        #     (
-        #         obj_target_coords[..., 2:].sqrt()
-        #         - (obj_resp_coords[..., 2:] ** 2).sqrt().sqrt()
-        #     )
-        #     ** 2
-        # )
-
-        # box_loss = self.config.L_coord * (center_loss + wh_loss)
-
-        # # Object Loss
-        # if self.config.Rescore:
-        #     conf_loss = self.config.L_obj * torch.sum(
-        #         ((ious - resp_boxes[..., 0]) ** 2) * obj_mask
-        #     )
-        # else:
-        #     conf_loss = self.config.L_obj * torch.sum(
-        #         ((target_boxes[..., 0] - resp_boxes[..., 0]) ** 2) * obj_mask
-        #     )
-
-        # # No Object Loss
-        # noobj_loss = self.config.L_noobj * torch.sum(
-        #     ((target_boxes[..., 0] - resp_boxes[..., 0]) ** 2) * noobj_mask
-        # )
-
-        # # Class Loss
-        # class_loss = self.config.L_class * torch.sum(
-        #     ((pred[..., :C] - target[..., :C]) ** 2) * obj_mask
-        # )
-
-        # loss = box_loss + conf_loss + noobj_loss + class_loss
-        # loss = loss / BATCH_SIZE
-
-        avg_iou = ious[obj_mask].mean()
+        avg_iou = ious[obj_mask.squeeze(-1)].mean()
 
         return loss, avg_iou
 

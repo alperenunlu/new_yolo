@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from torch.func import vmap
 
 from torchvision.ops import box_convert, box_iou, nms
 
@@ -264,29 +265,35 @@ def yolo_pred_to_xyxy(
     return bboxes_list
 
 
+def box_iou_vmap(a, b):
+    if len(a.shape) == 1:
+        a = a.unsqueeze(0)
+    if len(b.shape) == 1:
+        b = b.unsqueeze(0)
+
+    ious = box_iou(a, b).squeeze()
+    return ious
+
+
+box_iou_vmap = vmap(vmap(vmap(box_iou_vmap)))
+
+
+@torch.no_grad()
 def yolo_resp_bbox(
     pred: Tensor, target: Tensor, config: YOLOConfig
 ) -> Tuple[Tensor, Tensor]:
-    S = config.S
-    B = config.B
-    batch_size = pred.size(0)
-    size = S * S * batch_size
-
     pred_coords = yolo_multi_bbox_to_xyxy(pred, config)
     target_coords = yolo_multi_bbox_to_xyxy(target.unsqueeze(-2), config).squeeze(-2)
 
-    ious = (
-        box_iou(pred_coords.view(-1, 4), target_coords.view(-1, 4))
-        .view(size, B, size)
-        .transpose(1, 2)
-    )
-    ious = ious.diagonal(dim1=0, dim2=1).transpose(0, 1).reshape(batch_size, S, S, B)
+    ious = box_iou_vmap(pred_coords, target_coords)
     ious, best_bbox = ious.max(dim=-1)
 
     # if ious is 0 then responsible bbox is the one with the lowest rmse
     zero_batch, zero_i, zero_j = torch.where(ious == 0)
     zero_pred = pred_coords[zero_batch, zero_i, zero_j]
-    zero_target = target_coords[zero_batch, zero_i, zero_j].unsqueeze(1).repeat(1, B, 1)
+    zero_target = (
+        target_coords[zero_batch, zero_i, zero_j].unsqueeze(1).repeat(1, config.B, 1)
+    )
     rmse = (zero_pred - zero_target).pow(2).mean(dim=-1).sqrt()
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
