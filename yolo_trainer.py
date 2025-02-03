@@ -57,7 +57,7 @@ def train_one_epoch(
                 batch_idx=batch_idx,
                 prefix="Train",
                 config=config,
-                log_img=batch_idx == len(loader) - 1,
+                log_img=(batch_idx // 50 == 0),
                 lr=optimizer.param_groups[0]["lr"],
             )
 
@@ -125,7 +125,7 @@ def valid_one_epoch(
             global_step=global_step,
             batch_idx=batch_idx,
             config=config,
-            log_img=batch_idx == len(loader) - 1,
+            log_img=(batch_idx // 50 == 0),
             prefix="Valid",
         )
 
