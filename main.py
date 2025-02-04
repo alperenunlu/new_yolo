@@ -6,6 +6,7 @@ from torch.utils.tensorboard import SummaryWriter
 from torch.optim.lr_scheduler import OneCycleLR
 from torchmetrics.detection import MeanAveragePrecision
 from accelerate import Accelerator
+from accelerate.utils import set_seed
 
 from config_parser import load_config
 from voc_data import get_dataloaders
@@ -111,4 +112,5 @@ def main():
 
 
 if __name__ == "__main__":
+    set_seed(0)
     main()
