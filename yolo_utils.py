@@ -297,7 +297,7 @@ def yolo_resp_bbox(
     rmse = (zero_pred - zero_target).pow(2).mean(dim=-1).sqrt()
     best_bbox[zero_batch, zero_i, zero_j] = rmse.argmin(dim=-1)
 
-    return best_bbox, ious
+    return torch.nan_to_num(best_bbox, nan=0.0), torch.nan_to_num(ious, nan=0.0)
 
 
 if __name__ == "__main__":
