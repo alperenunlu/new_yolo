@@ -83,13 +83,15 @@ def main():
             epoch=epoch,
             config=config,
         )
-        print(
-            dict(
-                epoch=epoch,
-                train_map50=train_map50,
-                valid_map50=valid_map50,
+
+        if accelerator.is_main_process:
+            print(
+                dict(
+                    epoch=epoch,
+                    train_map50=train_map50,
+                    valid_map50=valid_map50,
+                )
             )
-        )
 
         if valid_map50 > curr_map_50:
             curr_map_50 = valid_map50
