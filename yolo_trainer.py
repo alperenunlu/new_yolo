@@ -43,23 +43,25 @@ def train_one_epoch(
         with accelerator.accumulate(model):
             global_step = epoch * len(loader) + batch_idx
 
-            # Check parameters before forward pass (optional)
-            if not check_model_params(model):
-                # Save a checkpoint here if you like:
-                torch.save({
-                    "epoch": epoch,
-                    "batch_idx": batch_idx,
-                    "global_step": global_step,
-                    "model_state": model.state_dict(),
-                    "optimizer_state": optimizer.state_dict(),
-                }, "param_issue_checkpoint.pt")
-                raise ValueError("Model parameters are corrupted (None detected) before forward pass.")
-
             preds = model(inputs)
             loss, avg_iou = criterion(preds, targets)
 
-            # Optionally check again after forward pass, if needed.
-            if not check_model_params(model):
+            optimizer.zero_grad()
+            accelerator.backward(loss)
+
+            optimizer.step()
+            if scheduler:
+                scheduler.step()
+
+            if batch_idx in [85, 86]:
+                # Create a dictionary of gradients
+                grads = {}
+                for name, param in model.named_parameters():
+                    # Check if gradient exists and detach it from the graph
+                    if param.grad is not None:
+                        grads[name] = param.grad.detach().cpu()
+
+                # Save the checkpoint including gradients
                 torch.save({
                     "epoch": epoch,
                     "batch_idx": batch_idx,
@@ -70,37 +72,14 @@ def train_one_epoch(
                     "preds": preds.detach().cpu(),
                     "inputs": inputs.detach().cpu(),
                     "targets": targets.detach().cpu(),
-                }, "param_issue_checkpoint.pt")
-                raise ValueError("Model parameters are corrupted (None detected) after forward pass.")
+                    "gradients": grads,  # added gradients
+                }, f"checkpoint_{batch_idx}.pth")
+                if batch_idx == 86:
+                    __import__('sys').exit(0)
 
-            optimizer.zero_grad()
-            accelerator.backward(loss)
-
-            # You could also check gradients here if you suspect issues with them:
-            for name, param in model.named_parameters():
-                if param.grad is None:
-                    print(f"[INFO] Gradient for parameter {name} is None.")
-                elif torch.isnan(param.grad).any():
-                    print(f"[WARNING] NaNs detected in gradient for parameter {name}.")
-                    # Optionally save checkpoint and raise an exception.
-                    torch.save({
-                        "epoch": epoch,
-                        "batch_idx": batch_idx,
-                        "global_step": global_step,
-                        "model_state": model.state_dict(),
-                        "optimizer_state": optimizer.state_dict(),
-                        "loss": loss.item(),
-                        "preds": preds.detach().cpu(),
-                        "inputs": inputs.detach().cpu(),
-                        "targets": targets.detach().cpu(),
-                    }, "grad_nan_checkpoint.pt")
-                    raise ValueError("NaN detected in gradients.")
-
-            optimizer.step()
-            if scheduler:
-                scheduler.step()
-
+            print(loss)
             loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
+            print(loss)
 
             map_50 = log_progress(
                 writer=writer,
