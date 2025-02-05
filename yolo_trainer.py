@@ -53,33 +53,7 @@ def train_one_epoch(
             if scheduler:
                 scheduler.step()
 
-            if batch_idx in [85, 86]:
-                # Create a dictionary of gradients
-                grads = {}
-                for name, param in model.named_parameters():
-                    # Check if gradient exists and detach it from the graph
-                    if param.grad is not None:
-                        grads[name] = param.grad.detach().cpu()
-
-                # Save the checkpoint including gradients
-                torch.save({
-                    "epoch": epoch,
-                    "batch_idx": batch_idx,
-                    "global_step": global_step,
-                    "model_state": model.state_dict(),
-                    "optimizer_state": optimizer.state_dict(),
-                    "loss": loss.item(),
-                    "preds": preds.detach().cpu(),
-                    "inputs": inputs.detach().cpu(),
-                    "targets": targets.detach().cpu(),
-                    "gradients": grads,  # added gradients
-                }, f"checkpoint_{batch_idx}.pth")
-                if batch_idx == 86:
-                    __import__('sys').exit(0)
-
-            print(loss)
             loss, avg_iou = accelerator.gather_for_metrics((loss, avg_iou))
-            print(loss)
 
             map_50 = log_progress(
                 writer=writer,
